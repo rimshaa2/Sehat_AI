@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "839845740526",
+    "project_id": "sehatai-eeaff",
+    "storage_bucket": "sehatai-eeaff.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:839845740526:android:745a0a2b0f0ce3fbb698ff",
+        "android_client_info": {
+          "package_name": "com.rimshahaha.SehatAI"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBSl9qC2T5GB18cku-IDOduQg8co0pUq5g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
