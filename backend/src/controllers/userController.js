@@ -23,7 +23,7 @@ exports.syncUser = async (req, res) => {
       
       // 4. Create User (Handle missing email for Phone Auth)
       user = await User.create({
-        firebaseUid: uid, // Check your User.js model name!
+        firebase_uid: uid, // Check your User.js model name!
         
         // If email is missing (Phone Auth), generate a placeholder or save null
         email: email || `${phone_number}@sehatai.placeholder.com`, 
