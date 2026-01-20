@@ -1,5 +1,5 @@
 const { User, Doctor } = require('../models');
-const admin = require('firebase-admin');
+const admin = require('../config/firebase');
 
 // 1. Sync User (The "Hybrid" Auth Logic)
 // Reference: SDS Table 18 - Hybrid Authentication & Profile Sync
@@ -46,6 +46,16 @@ exports.getUserProfile = async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Add this to your existing exports
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await User.findAll();
+    res.json(users);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

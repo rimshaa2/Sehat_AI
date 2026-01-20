@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
 
+router.get('/', userController.getAllUsers);
+
 // POST /api/users/sync -> Called after Login to save user to MySQL
 router.post('/sync', userController.syncUser);
 
