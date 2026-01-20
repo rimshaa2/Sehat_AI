@@ -24,7 +24,7 @@ exports.createDoctorProfile = async (req, res) => {
     }
 
     // ⚡ IMPORTANT: Invalidate Cache so new data shows up in search
-    await redisClient.del('all_doctors'); 
+    // await redisClient.del('all_doctors'); 
 
     res.status(200).json({ success: true, doctor });
   } catch (error) {
@@ -49,14 +49,14 @@ exports.getAllDoctors = async (req, res) => {
 
     // B. Redis Cache Logic (Hybrid Architecture)
     // Only use cache if there are NO filters (for the "All Doctors" view)
-    const cacheKey = 'all_doctors';
-    if (Object.keys(whereClause).length === 0) {
-      const cachedData = await redisClient.get(cacheKey);
-      if (cachedData) {
-        console.log('⚡ Serving Doctors from Redis Cache');
-        return res.json(JSON.parse(cachedData));
-      }
-    }
+    // const cacheKey = 'all_doctors';
+    // if (Object.keys(whereClause).length === 0) {
+    //   const cachedData = await redisClient.get(cacheKey);
+    //   if (cachedData) {
+    //     console.log('⚡ Serving Doctors from Redis Cache');
+    //     return res.json(JSON.parse(cachedData));
+    //   }
+    // }
 
     // C. Query MySQL (The Source of Truth)
     const doctors = await Doctor.findAll({
@@ -69,9 +69,9 @@ exports.getAllDoctors = async (req, res) => {
     });
 
     // D. Save to Redis (for 1 hour) if no filters
-    if (Object.keys(whereClause).length === 0) {
-      await redisClient.setEx(cacheKey, 3600, JSON.stringify(doctors));
-    }
+    // if (Object.keys(whereClause).length === 0) {
+    //   await redisClient.setEx(cacheKey, 3600, JSON.stringify(doctors));
+    // }
 
     res.json(doctors);
   } catch (error) {
