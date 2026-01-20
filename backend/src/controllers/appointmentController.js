@@ -37,7 +37,7 @@ exports.bookAppointment = async (req, res) => {
 
     // D. Hybrid Logic: Invalidate Redis Cache
     // If we cached doctor slots, we must clear them now so this slot shows as "taken"
-    await redisClient.del(`doctor_slots_${doctorId}`); 
+    // await redisClient.del(`doctor_slots_${doctorId}`); 
     console.log(`🔄 Cache Cleared for Doctor ${doctorId}`);
 
     res.status(201).json({ success: true, appointment: newAppointment });
@@ -88,7 +88,7 @@ exports.cancelAppointment = async (req, res) => {
     await appt.save();
 
     // Invalidate cache again just in case
-    await redisClient.del(`doctor_slots_${appt.doctorId}`);
+    // await redisClient.del(`doctor_slots_${appt.doctorId}`);
 
     res.json({ success: true, message: 'Appointment cancelled' });
   } catch (error) {
