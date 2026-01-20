@@ -16,7 +16,7 @@ exports.syncUser = async (req, res) => {
     // 3. Check if User exists (Using the correct column name)
     // IMPORTANT: Check your User.js model. Is it 'firebase_uid' or 'firebaseUid'?
     // Sequelize usually defaults to camelCase 'firebaseUid'. 
-    let user = await User.findOne({ where: { firebaseUid: uid } }); 
+    let user = await User.findOne({ where: { firebase_uid: uid } }); 
 
     if (!user) {
       console.log(`🆕 Creating New User: ${uid}`);
