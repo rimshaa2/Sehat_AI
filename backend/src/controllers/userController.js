@@ -7,29 +7,38 @@ exports.syncUser = async (req, res) => {
   const { idToken } = req.body;
 
   try {
-    // A. Verify Token with Firebase
+    // 1. Verify Token
     const decodedToken = await admin.auth().verifyIdToken(idToken);
-    const { uid, email, name, picture } = decodedToken;
+    
+    // 2. Extract Data (Including phone number!)
+    const { uid, email, name, picture, phone_number } = decodedToken;
 
-    // B. Check if User exists in MySQL
-    let user = await User.findOne({ where: { firebase_uid: uid } });
+    // 3. Check if User exists (Using the correct column name)
+    // IMPORTANT: Check your User.js model. Is it 'firebase_uid' or 'firebaseUid'?
+    // Sequelize usually defaults to camelCase 'firebaseUid'. 
+    let user = await User.findOne({ where: { firebaseUid: uid } }); 
 
     if (!user) {
-      // C. If not, CREATE them (First time login)
+      console.log(`🆕 Creating New User: ${uid}`);
+      
+      // 4. Create User (Handle missing email for Phone Auth)
       user = await User.create({
-        firebase_uid: uid,
-        email: email,
+        firebaseUid: uid, // Check your User.js model name!
+        
+        // If email is missing (Phone Auth), generate a placeholder or save null
+        email: email || `${phone_number}@sehatai.placeholder.com`, 
+        
         fullName: name || 'New User',
-        role: 'patient', // Default role
-        profilePicture: picture
+        role: 'patient',
+        profilePicture: picture || null,
+        phoneNumber: phone_number || null // Save the phone number
       });
-      console.log(`🆕 New User Created: ${email}`);
     }
 
     res.status(200).json({ success: true, user });
   } catch (error) {
-    console.error('Auth Error:', error);
-    res.status(401).json({ error: 'Invalid Token' });
+    console.error('Auth Sync Error:', error);
+    res.status(401).json({ error: 'Invalid Token or Database Error' });
   }
 };
 
