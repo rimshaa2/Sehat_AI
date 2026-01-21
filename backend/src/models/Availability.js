@@ -1,12 +1,32 @@
-// src/models/Availability.js
-module.exports = (sequelize, DataTypes) => {
-  const Availability = sequelize.define("Availability", {
-    dayOfWeek: DataTypes.STRING, // e.g., "Monday"
-    startTime: DataTypes.TIME,   // "09:00:00"
-    endTime: DataTypes.TIME,     // "17:00:00"
-    isBooked: { type: DataTypes.BOOLEAN, defaultValue: false } 
-    // In a real app, you'd calculate specific slots dynamically, 
-    // but for this MVP, we can treat rows as slots.
-  });
-  return Availability;
-};
+const { DataTypes } = require("sequelize");
+const { sequelize } = require("../config/database");
+
+const Availability = sequelize.define("Availability", {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true,
+  },
+  doctorId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  },
+  dayOfWeek: {
+    type: DataTypes.STRING, 
+    allowNull: false,
+  },
+  startTime: {
+    type: DataTypes.TIME, 
+    allowNull: false,
+  },
+  endTime: {
+    type: DataTypes.TIME, 
+    allowNull: false,
+  },
+  isAvailable: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+  }
+});
+
+module.exports = Availability;
