@@ -95,3 +95,39 @@ exports.cancelAppointment = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// 4. Browse Available Doctors (Activity: "Browse Available Doctors")
+exports.getDoctors = async (req, res) => {
+  const { specialty } = req.query;
+  const whereClause = specialty ? { specialization: specialty } : {};
+
+  try {
+    const doctors = await Doctor.findAll({
+      where: whereClause,
+      include: [{ model: User, as: 'user', attributes: ['fullName', 'profilePicture'] }]
+    });
+    res.json(doctors);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+};
+
+// 5. Check Availability (Sequence: "checkAvailability() -> returnAvailableSlots()")
+exports.getDoctorSlots = async (req, res) => {
+  const { doctorId } = req.params;
+  const { date } = req.query; // e.g. "2026-01-25" (which is a Sunday)
+  
+  // LOGIC: In a real app, we check if the day matches the doctor's schedule
+  // For now, let's return mock slots to get the UI working.
+  const mockSlots = ["09:00", "10:00", "11:30", "14:00", "16:00"];
+  
+  // Filter out slots that are already booked in the Appointments table
+  const existingBookings = await Appointment.findAll({
+    where: { doctorId, appointmentDate: date }
+  });
+  
+  const bookedTimes = existingBookings.map(a => a.timeSlot.substring(0,5)); // "09:00"
+  const available = mockSlots.filter(time => !bookedTimes.includes(time));
+
+  res.json({ date, availableSlots: available });
+};

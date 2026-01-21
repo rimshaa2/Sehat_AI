@@ -11,4 +11,7 @@ router.get('/', appointmentController.getMyAppointments);
 // PATCH /api/appointments/:id/cancel -> Cancel
 router.patch('/:id/cancel', appointmentController.cancelAppointment);
 
+router.get('/doctors', appointmentController.getDoctors);
+router.get('/doctors/:doctorId/slots', appointmentController.getDoctorSlots);
+
 module.exports = router;

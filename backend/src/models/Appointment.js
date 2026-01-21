@@ -1,8 +1,7 @@
 const { DataTypes } = require("sequelize");
 const { sequelize } = require("../config/database");
-const User = require("./User");
 
-// Reference: SDS Table 12 - Appointment Table Dictionary [cite: 1075]
+// Reference: SDS Table 12 - Appointment Table Dictionary
 const Appointment = sequelize.define(
   "Appointment",
   {
@@ -31,29 +30,50 @@ const Appointment = sequelize.define(
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
     },
+    // "reason" maps to "medicalContext" in our new logic
     reason: {
       type: DataTypes.STRING,
       allowNull: true,
     },
     meetingLink: {
-      type: DataTypes.STRING, // For telemedicine links [cite: 905]
+      type: DataTypes.STRING, // For telemedicine links
       allowNull: true,
     },
+    // We explicitly define foreign keys here for clarity, though associations handle them too
+    patientId: {
+      type: DataTypes.INTEGER, // Match your User ID type (usually INTEGER)
+      allowNull: false,
+    },
+    doctorId: {
+      type: DataTypes.INTEGER, // Match your Doctor ID type
+      allowNull: false,
+    }
   },
   {
     indexes: [
       {
-        unique: true, // <--- This forces the database to reject duplicates
+        unique: true, // Prevents double booking for the same doc at same time
         fields: ["doctorId", "appointmentDate", "timeSlot"],
       },
     ],
   }
 );
 
-// Relationships
-// User.hasMany(Appointment, { foreignKey: 'patientId', as: 'patientAppointments' });
-// User.hasMany(Appointment, { foreignKey: 'doctorId', as: 'doctorAppointments' });
-// Appointment.belongsTo(User, { as: 'patient', foreignKey: 'patientId' });
-// Appointment.belongsTo(User, { as: 'doctor', foreignKey: 'doctorId' });
+// 🟢 ENABLE ASSOCIATIONS
+// We use a static method pattern to keep it clean in models/index.js
+Appointment.associate = (models) => {
+  // 1. Link to Patient (User Table)
+  Appointment.belongsTo(models.User, { 
+    as: 'patient', 
+    foreignKey: 'patientId' 
+  });
+
+  // 2. Link to Doctor (Doctor Table - NOT User Table directly)
+  // This allows us to access Doctor->Specialty AND Doctor->User->Name
+  Appointment.belongsTo(models.Doctor, { 
+    as: 'doctor', 
+    foreignKey: 'doctorId' 
+  });
+};
 
 module.exports = Appointment;

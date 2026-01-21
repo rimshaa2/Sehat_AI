@@ -4,50 +4,33 @@ const { sequelize } = require('../config/database');
 const User = require('./User');
 const Doctor = require('./Doctor');
 const Appointment = require('./Appointment');
+const Availability = require('./Availability'); // 🟢 NEW IMPORT
 
-// 2. Define Relationships (Associations)
-// Reference: SDS Class Diagram & Entity Relationships
+// 2. Define Relationships
 
-// --- User & Doctor Relationship ---
-// A User can be a Doctor (One-to-One link)
-User.hasOne(Doctor, { 
-  foreignKey: 'userId', 
-  as: 'doctorProfile', 
-  onDelete: 'CASCADE' // If User is deleted, delete Doctor profile too
-});
-Doctor.belongsTo(User, { 
-  foreignKey: 'userId', 
-  as: 'user' 
-});
+// --- User & Doctor ---
+User.hasOne(Doctor, { foreignKey: 'userId', as: 'doctorProfile', onDelete: 'CASCADE' });
+Doctor.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
 // --- Appointment Relationships ---
-// An Appointment needs a Patient (User)
-User.hasMany(Appointment, { 
-  foreignKey: 'patientId', 
-  as: 'patientAppointments' 
-});
-Appointment.belongsTo(User, { 
-  foreignKey: 'patientId', 
-  as: 'patient' 
-});
+User.hasMany(Appointment, { foreignKey: 'patientId', as: 'patientAppointments' });
+Appointment.belongsTo(User, { foreignKey: 'patientId', as: 'patient' });
 
-// An Appointment needs a Doctor (User or Doctor Model)
-// We link to Doctor model to ensure they are actually a doctor
-Doctor.hasMany(Appointment, { 
-  foreignKey: 'doctorId', 
-  as: 'doctorAppointments' 
-});
-Appointment.belongsTo(Doctor, { 
-  foreignKey: 'doctorId', 
-  as: 'doctor' 
-});
+Doctor.hasMany(Appointment, { foreignKey: 'doctorId', as: 'doctorAppointments' });
+Appointment.belongsTo(Doctor, { foreignKey: 'doctorId', as: 'doctor' });
 
-// 3. Export everything together
+// --- Availability Relationships (🟢 NEW) ---
+// A Doctor has many working slots (e.g., Mon 9-5, Wed 9-1)
+Doctor.hasMany(Availability, { foreignKey: 'doctorId', as: 'schedules' });
+Availability.belongsTo(Doctor, { foreignKey: 'doctorId', as: 'doctor' });
+
+// 3. Export
 const db = {
-  sequelize, // The connection instance
+  sequelize,
   User,
   Doctor,
-  Appointment
+  Appointment,
+  Availability // 🟢 Export it
 };
 
 module.exports = db;

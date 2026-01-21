@@ -8,16 +8,16 @@ const Doctor = sequelize.define('Doctor', {
     primaryKey: true,
     autoIncrement: true
   },
-  // Link to the User table (Foreign Key)
   userId: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    unique: true // One user = One doctor profile
+    unique: true 
   },
   specialization: {
     type: DataTypes.STRING,
-    allowNull: false // e.g., "Cardiologist"
+    allowNull: false
   },
+  // ✅ KEPT YOUR FIELD (Renamed in my previous code, but let's stick to yours)
   experienceYears: {
     type: DataTypes.INTEGER,
     defaultValue: 0
@@ -29,7 +29,30 @@ const Doctor = sequelize.define('Doctor', {
   isVerified: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
+  },
+  
+  // 🟢 NEW FIELDS FOR APPOINTMENT MODULE
+  bio: {
+    type: DataTypes.TEXT, // Longer text for "About Doctor"
+    allowNull: true
+  },
+  availabilityStatus: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true // To toggle "Online/Offline" manually
   }
 });
+
+// 2. Define Associations (Crucial for "include: [...]" queries)
+// We assign this to a helper method so we can call it in models/index.js
+Doctor.associate = (models) => {
+  // Link to User (to get Name, Profile Pic)
+  Doctor.belongsTo(models.User, { as: 'user', foreignKey: 'userId' });
+  
+  // Link to Appointments (To check booked slots)
+  Doctor.hasMany(models.Appointment, { as: 'appointments', foreignKey: 'doctorId' });
+  
+  // Link to Availability (To check working hours)
+  Doctor.hasMany(models.Availability, { as: 'schedules', foreignKey: 'doctorId' });
+};
 
 module.exports = Doctor;
