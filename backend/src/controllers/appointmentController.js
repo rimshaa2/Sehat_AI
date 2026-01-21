@@ -104,7 +104,7 @@ exports.getDoctors = async (req, res) => {
   try {
     const doctors = await Doctor.findAll({
       where: whereClause,
-      include: [{ model: User, as: 'user', attributes: ['fullName', 'profilePicture'] }]
+      include: [{ model: User, as: 'user', attributes: ['fullName'] }]
     });
     res.json(doctors);
   } catch (e) {
