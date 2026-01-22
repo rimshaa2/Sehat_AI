@@ -1,4 +1,5 @@
 import axios from 'axios';
+const PYTHON_URL = 'http://192.168.1.15:5001';
 
 const api = axios.create({
   baseURL: process.env.EXPO_PUBLIC_API_URL, 
@@ -55,9 +56,25 @@ export const getMyAppointments = async (userId, role = 'patient') => {
 };
 
 // 4. AI Service (Through Node Gateway)
-export const analyzeSymptoms = async (symptoms) => {
-  const response = await api.post('/ai/analyze', { symptoms });
-  return response.data;
+export const sendVoiceMessage = async (uri, language = 'en-US') => {
+  const formData = new FormData();
+  
+  formData.append('audio', {
+    uri: uri,
+    type: 'audio/m4a', // Expo records in m4a usually
+    name: 'upload.m4a',
+  });
+  formData.append('language', language);
+
+  const response = await fetch(`${PYTHON_URL}/voice-chat`, {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+
+  return await response.json();
 };
 
 export default api;
