@@ -30,7 +30,7 @@ const db = {
   User,
   Doctor,
   Appointment,
-  Availability // 🟢 Export it
+  Availability 
 };
 
 module.exports = db;
