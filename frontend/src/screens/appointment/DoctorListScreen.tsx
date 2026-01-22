@@ -13,44 +13,59 @@ import {
   Modal,
   TouchableWithoutFeedback,
 } from "react-native";
-import { ChevronLeft, Search, Star, ChevronDown, X } from "lucide-react";
-import { getFirestore, collection, query, where, getDocs } from "@react-native-firebase/firestore";
+import { ChevronLeft, Search, Star, ChevronDown, X } from "lucide-react-native";
+import { getDoctors } from "../../services/api"; 
+
 import styles from "./styles/DoctorListStyles";
 
 export default ({ navigation, route }: any) => {
-  const categoryTitle = route.params?.specialty || "Ear, Nose & Throat";
+  // 1. Get the category (Default to "All Doctors" if nothing passed)
+  const categoryTitle = route.params?.specialty || "All Doctors";
 
   const [allDoctors, setAllDoctors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // -- Search State --
+  // -- Search & Filter State --
   const [searchQuery, setSearchQuery] = useState("");
-
-  // -- Filter State --
   const [availableToday, setAvailableToday] = useState(false);
   const [genderModalVisible, setGenderModalVisible] = useState(false);
   const [selectedGender, setSelectedGender] = useState<string | null>(null);
   const [priceModalVisible, setPriceModalVisible] = useState(false);
   const [priceSort, setPriceSort] = useState<"asc" | "desc" | null>(null);
 
-  // 1. Fetch Data
   useEffect(() => {
     const fetchDoctors = async () => {
+      console.log("🔍 Fetching doctors for:", categoryTitle);
       setLoading(true);
       try {
-        const db = getFirestore();
-        const doctorsRef = collection(db, "doctors");
-        const q = query(doctorsRef, where("category", "==", categoryTitle));
-        const querySnapshot = await getDocs(q);
-        
-        const list: any[] = [];
-        querySnapshot.forEach((doc: { id: any; data: () => any; }) => {
-          list.push({ id: doc.id, ...doc.data() });
-        });
+        // 🟢 NEW: Call your Node.js Backend (MySQL)
+        // If category is "All Doctors", we pass null so the API fetches everyone
+        const apiData = await getDoctors(categoryTitle === "All Doctors" ? null : categoryTitle);
 
-        setAllDoctors(list);
+        console.log(`✅ API Returned ${apiData.length} doctors`);
+
+        // 🟢 MAPPING: Convert MySQL Data Format -> UI Format
+        // This is crucial because your DB has 'consultationFee' but your UI expects 'price'
+        const formattedList = apiData.map((doc: any) => ({
+          id: doc.id.toString(), // Ensure ID is string for FlatList
+          name: doc.user?.fullName || "Unknown Doctor", // Join from User Table
+          specialty: doc.specialization,
+          image: doc.user?.profilePicture || null, // Join from User Table
+          
+          // Price Formatting
+          price: `Rs. ${doc.consultationFee}`, 
+          priceValue: doc.consultationFee, // Keep raw number for sorting logic
+          
+          // ⚠️ Mocks for fields not yet in DB (Randomized so you can test filters)
+          rating: (Math.random() * (5.0 - 3.5) + 3.5).toFixed(1), 
+          gender: Math.random() > 0.5 ? 'Male' : 'Female', 
+          isAvailable: true 
+        }));
+
+        setAllDoctors(formattedList);
       } catch (error) {
-        console.error("Error:", error);
+        console.error("API Error:", error);
+        Alert.alert("Connection Error", "Could not connect to Sehat AI Server.");
       } finally {
         setLoading(false);
       }
@@ -58,7 +73,7 @@ export default ({ navigation, route }: any) => {
     fetchDoctors();
   }, [categoryTitle]);
 
-  // 2. Filter Logic (Search + Filters + Sort)
+  // 2. Client-Side Filtering (Kept exactly the same)
   const filteredDoctors = useMemo(() => {
     let result = [...allDoctors];
 
@@ -109,7 +124,7 @@ export default ({ navigation, route }: any) => {
         <Text style={styles.price}>{item.price}</Text>
       </View>
       <View style={styles.ratingContainer}>
-        <Star size={14} color="#F59E0B" fill="#F59E0B" />
+        <Star size={14} color="#F59E0B" fill="#F59E0B"/>
         <Text style={styles.ratingText}>{item.rating}</Text>
       </View>
     </TouchableOpacity>
@@ -135,9 +150,8 @@ export default ({ navigation, route }: any) => {
             placeholderTextColor="#A1A8B0"
             style={styles.searchInput}
             value={searchQuery}
-            onChangeText={setSearchQuery} // Updates state as you type
+            onChangeText={setSearchQuery}
           />
-          {/* Clear Search Button */}
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery("")}>
               <X color="#A1A8B0" size={18} />
@@ -145,6 +159,7 @@ export default ({ navigation, route }: any) => {
           )}
         </View>
         
+        {/* Filter Button (Visual only for now) */}
         <TouchableOpacity style={styles.filterBtnSquare}>
            <View style={styles.filterLine1} />
            <View style={styles.filterLine2} />
@@ -152,7 +167,7 @@ export default ({ navigation, route }: any) => {
         </TouchableOpacity>
       </View>
 
-      {/* Filters */}
+      {/* Horizontal Filters Scroll */}
       <View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersScroll}>
           <TouchableOpacity 

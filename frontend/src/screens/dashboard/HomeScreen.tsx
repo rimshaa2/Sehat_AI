@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import {
   SafeAreaView,
   View,
@@ -7,9 +7,9 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
+  ActivityIndicator
 } from "react-native";
 import { getAuth } from "@react-native-firebase/auth";
-import { getFirestore, doc, getDoc, collection, query, where, getDocs } from "@react-native-firebase/firestore";
 import { useFocusEffect } from "@react-navigation/native"; 
 import { 
   Search, 
@@ -17,74 +17,69 @@ import {
   Clock, 
   MessageCircle, 
   Home, 
-  User, 
+  User as UserIcon, 
   CalendarDays 
 } from "lucide-react-native";
 
-import styles from "./HomeScreenStyles";
+// 🟢 IMPORT API SERVICES (This replaces Firestore)
+import { getUserProfile, getMyAppointments } from "../../services/api";
+
+import styles from "./styles/HomeScreenStyles";
 
 export default ({ navigation }: any) => {
   const [userName, setUserName] = useState("User");
   const [nextAppointment, setNextAppointment] = useState<any>(null);
-  const [loadingAppt, setLoadingAppt] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   const auth = getAuth();
-  const db = getFirestore();
 
-  // 1. Fetch User Name (Runs once on mount)
-  useEffect(() => {
-    const fetchUserData = async () => {
-      const user = auth.currentUser;
-      if (user) {
-        if (user.displayName) {
-          setUserName(user.displayName.split(" ")[0]);
-        } else {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            setUserName(userData?.fullName?.split(" ")[0] || "User");
-          }
-        }
-      }
-    };
-    fetchUserData();
-  }, []);
-
-  // 2. Fetch Upcoming Appointment (Runs every time screen is focused)
+  // 1. Fetch User Data & Appointments (Runs on Focus)
   useFocusEffect(
     useCallback(() => {
-      const fetchAppointment = async () => {
-        const user = auth.currentUser;
-        if (!user) return;
+      let isActive = true; // Cleanup flag to prevent state updates if screen unmounts
+
+      const fetchData = async () => {
+        const currentUser = auth.currentUser;
+        if (!currentUser) return;
 
         try {
-          // Query: Get appointments for this specific user
-          const q = query(
-            collection(db, "appointments"),
-            where("userId", "==", user.uid)
-          );
-
-          const snapshot = await getDocs(q);
+          // A. Fetch User Profile from Backend (using Firebase UID)
+          const userProfile = await getUserProfile(currentUser.uid);
           
-          if (!snapshot.empty) {
-            const appointments = snapshot.docs.map((doc: { id: any; data: () => any; }) => ({ id: doc.id, ...doc.data() }));
+          if (isActive && userProfile) {
+            setUserName(userProfile.fullName?.split(" ")[0] || "User");
+
+            // B. Fetch Appointments (using the MySQL ID we just got)
+            // Note: userProfile.id is the MySQL ID (e.g., 1), not the Firebase UID
+            const appointments = await getMyAppointments(userProfile.id, 'patient');
             
-            // Sort by creation time (newest first) to show the latest booking
-            // Note: In a real app, you might want to sort by 'date' to show the *next* appointment
-            appointments.sort((a: any, b: any) => b.createdAt - a.createdAt);
-            
-            setNextAppointment(appointments[0]);
-          } else {
-            setNextAppointment(null);
+            if (appointments && appointments.length > 0) {
+              // Get the most recent/upcoming appointment
+              const upcoming = appointments[0]; 
+
+              // C. Map Backend Data to UI Structure
+              setNextAppointment({
+                id: upcoming.id,
+                doctorName: upcoming.doctor?.user?.fullName || "Unknown Doctor",
+                doctorSpecialty: upcoming.doctor?.specialization || "General",
+                doctorImage: upcoming.doctor?.user?.profilePicture,
+                date: upcoming.appointmentDate,
+                time: upcoming.timeSlot
+              });
+            } else {
+              setNextAppointment(null);
+            }
           }
         } catch (error) {
-          console.error("Error fetching appointment:", error);
+          console.error("Home Data Error:", error);
         } finally {
-          setLoadingAppt(false);
+          if (isActive) setLoading(false);
         }
       };
 
-      fetchAppointment();
+      fetchData();
+
+      return () => { isActive = false; };
     }, [])
   );
 
@@ -118,7 +113,7 @@ export default ({ navigation }: any) => {
             style={styles.profileButton}
             onPress={() => navigation.navigate("Profile")}
           >
-             <User color="#1C2A3A" size={24} />
+             <UserIcon color="#1C2A3A" size={24} />
           </TouchableOpacity>
         </View>
 
@@ -137,11 +132,12 @@ export default ({ navigation }: any) => {
           </TouchableOpacity>
         </View>
 
-        {/* 3. Dynamic Appointment Card (Clickable) */}
-        {nextAppointment ? (
+        {/* 3. Dynamic Appointment Card */}
+        {loading ? (
+           <ActivityIndicator size="small" color="#199A8E" style={{ marginVertical: 20 }}/>
+        ) : nextAppointment ? (
           <TouchableOpacity 
             activeOpacity={0.9}
-            // Navigate to Details screen passing the appointment object
             onPress={() => navigation.navigate("AppointmentDetails", { appointment: nextAppointment })}
           >
             <View style={styles.appointmentCard}>
@@ -174,8 +170,8 @@ export default ({ navigation }: any) => {
             </View>
           </TouchableOpacity>
         ) : (
-          // Placeholder or Null if no appointment
-          null
+          // Optional: You can put a "No upcoming appointments" text here if you want
+          null 
         )}
 
         {/* Grid Menu */}
@@ -206,18 +202,21 @@ export default ({ navigation }: any) => {
             subtitle="Take help in emergency situation"
             icon={{ uri: 'https://cdn-icons-png.flaticon.com/512/564/564619.png' }}
             color="#FFEEEE" 
+            onPress={() => console.log("Emergency!")}
           />
           <GridItem 
             title="Log Medicines" 
             subtitle="get reminded to take medicines"
             icon={{ uri: 'https://cdn-icons-png.flaticon.com/512/883/883360.png' }}
             color="#FFF5EB" 
+            onPress={() => console.log("Medicine Log")}
           />
           <GridItem 
             title="Mental Wellness" 
             subtitle="seek Mental health support"
             icon={{ uri: 'https://cdn-icons-png.flaticon.com/512/2913/2913520.png' }}
             color="#FEFCE4" 
+            onPress={() => console.log("Mental Wellness")}
           />
         </View>
 
@@ -230,7 +229,7 @@ export default ({ navigation }: any) => {
             </TouchableOpacity>
           </View>
           <View style={styles.promoImagePlaceholder}>
-             <Text style={{color:'white', fontWeight:'bold'}}>AI</Text>
+              <Text style={{color:'white', fontWeight:'bold'}}>AI</Text>
           </View>
         </View>
 
@@ -247,7 +246,7 @@ export default ({ navigation }: any) => {
         </TouchableOpacity>
         
         <TouchableOpacity onPress={() => navigation.navigate("Profile")}>
-          <User color="#FFFFFF" size={24} />
+          <UserIcon color="#FFFFFF" size={24} />
         </TouchableOpacity>
         
         <TouchableOpacity>

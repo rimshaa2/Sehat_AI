@@ -9,24 +9,24 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  StyleSheet,
 } from "react-native";
 import auth from "@react-native-firebase/auth";
 import styles from "./styles/RegisterScreenStyles";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { AuthStackParamList } from "../../navigation/types";
-import firestore from "@react-native-firebase/firestore";
 import { Keyboard } from "react-native";
-import { serverTimestamp } from "@react-native-firebase/firestore";
 
-// Simple regex for email validation
+// 🔴 REMOVED: Firestore imports
+// 🟢 ADDED: Sync User API
+import { syncUser } from "../../services/api";
+
 const isValidEmail = (email: string) => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 };
 
 type Props = NativeStackScreenProps<AuthStackParamList, "Register">;
+
 const RegisterScreen: React.FC<Props> = ({ navigation }) => {
-  // Form State
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -76,7 +76,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
     setIsLoading(true);
 
     try {
-      // 2. Create Authentication User
+      // 1. Create Authentication User in Firebase
       const userCredential = await auth().createUserWithEmailAndPassword(
         email.trim(),
         password
@@ -84,33 +84,38 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
 
       const user = userCredential.user;
 
-      // 3. Save extra data to Firestore
-      // We use .set() to create a document with the specific User ID (uid)
-      await firestore().collection("users").doc(user.uid).set({
-        fullName: name,
-        email: email.trim(),
-        createdAt: serverTimestamp(), // Consistent server time
-        role: "user", 
-        profileImage: null,
-      });
+      // 2. Update Auth Profile IMMEDIATELY
+      // We do this before syncing so the token contains the correct name
+      await user.updateProfile({ displayName: name });
 
-      // 4. Update Auth Profile 
-     await auth().currentUser?.updateProfile({ displayName: name });
+      // 3. Get Fresh Token (Force Refresh)
+      // Passing 'true' forces a refresh, ensuring the new displayName is inside the token
+      const idToken = await user.getIdToken(true);
 
+      // 4. Sync to MySQL Backend
+      console.log("Syncing new user to MySQL...");
+      await syncUser(idToken);
+      console.log("✅ User created in MySQL");
 
       Alert.alert("Success", "Account created successfully!");
 
       // Navigate to Home/App
       navigation.navigate("Home");
+
     } catch (error: any) {
+      console.error("Registration Error:", error);
+      
       let errorMessage = "Something went wrong";
       if (error.code === "auth/email-already-in-use") {
         errorMessage = "That email address is already in use!";
       } else if (error.code === "auth/weak-password") {
         errorMessage = "Password is too weak!";
+      } else if (error.message && error.message.includes("Network Error")) {
+        errorMessage = "Account created, but could not connect to server. Please check internet.";
       } else {
         errorMessage = error.message;
       }
+      
       Alert.alert("Registration Failed", errorMessage);
     } finally {
       setIsLoading(false);

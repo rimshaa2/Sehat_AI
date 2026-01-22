@@ -9,7 +9,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import { ChevronLeft, MoreVertical } from "lucide-react";
+import { ChevronLeft, MoreVertical } from "lucide-react-native";
 import { getFirestore, doc, deleteDoc, updateDoc } from "@react-native-firebase/firestore";
 import styles from "./styles/AppointmentDetailStyles";
 

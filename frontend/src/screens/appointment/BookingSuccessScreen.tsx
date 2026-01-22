@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   StatusBar,
 } from "react-native";
-import { Calendar } from "lucide-react";
+import { Calendar } from "lucide-react-native";
 import styles from "./styles/BookingSuccessStyles";
 
 export default ({ navigation, route }: any) => {

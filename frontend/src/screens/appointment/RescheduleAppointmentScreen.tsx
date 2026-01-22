@@ -8,7 +8,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft } from "lucide-react-native";
 import { getFirestore, doc, updateDoc, serverTimestamp } from "@react-native-firebase/firestore";
 import styles from "./styles/RescheduleAppointmentStyles";
 

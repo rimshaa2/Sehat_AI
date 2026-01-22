@@ -9,20 +9,23 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import { ChevronLeft, Star, MapPin, Calendar, PenTool } from "lucide-react";
+import { ChevronLeft, Star, MapPin, Calendar, PenTool } from "lucide-react-native";
 import { getAuth } from "@react-native-firebase/auth";
-import { getFirestore, collection, addDoc, serverTimestamp } from "@react-native-firebase/firestore";
+
+// 🟢 IMPORT API SERVICES
+import api, { getUserProfile } from "../../services/api"; 
 import styles from "./styles/PaymentScreenStyles";
 
-export default ({ navigation, route }: any) => {
-  // 1. Get Data from Navigation Params
+export default ({ navigation, route = { params: {} } }: any) => {
+  // 1. Get Data from Previous Screen
   const { doctor, date, time, reason } = route.params || {};
 
   const [isLoading, setIsLoading] = useState(false);
 
   // Payment Calculations
-  const consultationFee = 2500;
-  const adminFee = 500;
+  // In a real app, 'consultationFee' should come from doctor.priceValue
+  const consultationFee = doctor?.priceValue || 2500;
+  const adminFee = 100; // Small platform fee
   const total = consultationFee + adminFee;
 
   const handleConfirmBooking = async () => {
@@ -30,43 +33,50 @@ export default ({ navigation, route }: any) => {
 
     try {
       const auth = getAuth();
-      const db = getFirestore();
-      const user = auth.currentUser;
+      const currentUser = auth.currentUser;
 
-      if (!user) {
-        Alert.alert("Error", "You must be logged in to book an appointment.");
+      if (!currentUser) {
+        Alert.alert("Error", "You must be logged in to book.");
         return;
       }
 
-      // 2. Prepare the Appointment Data object
-      const appointmentData = {
-        userId: user.uid,              // Link to the patient
-        userEmail: user.email,
-        doctorId: doctor?.id,          // Link to the doctor
-        doctorName: doctor?.name,
-        doctorSpecialty: doctor?.specialty,
-        doctorImage: doctor?.image,
-        date: date,
-        time: time,
+      // A. Get the MySQL User ID (We only have Firebase UID right now)
+      // We need the integer ID (e.g. 1, 2) to link the Foreign Key in MySQL
+      const userProfile = await getUserProfile(currentUser.uid);
+      
+      if (!userProfile || !userProfile.id) {
+        throw new Error("Could not find user profile in database.");
+      }
+
+      // B. Prepare Payload for Backend
+      const payload = {
+        patientId: userProfile.id, // The MySQL ID we just found
+        doctorId: doctor.id,       // The Doctor's MySQL ID
+        appointmentDate: date,                // "2026-01-21"
+        timeSlot: time,                // "09:00:00"
         reason: reason,
-        totalAmount: total,
-        status: 'upcoming',            // Initial status
-        createdAt: serverTimestamp(),  // Database server time
+        amount: total
       };
 
-      // 3. Save to "appointments" collection
-      // We use addDoc() to let Firestore generate a unique Booking ID
-      await addDoc(collection(db, "appointments"), appointmentData);
+      console.log("🚀 Booking Payload:", payload);
 
-      navigation.replace("BookingSuccess", {
-        doctor: doctor,
-        date: date,
-        time: time,
-      });
+      // C. Call the Backend
+      // POST /api/appointments/book
+      const response = await api.post('/api/appointments/book', payload);
 
-    } catch (error) {
+      if (response.data.success) {
+        // D. Success! Navigate to Success Screen
+        navigation.replace("BookingSuccess", {
+          doctor: doctor,
+          date: date,
+          time: time,
+        });
+      }
+
+    } catch (error: any) {
       console.error("Booking Error:", error);
-      Alert.alert("Booking Failed", "Something went wrong. Please try again.");
+      const msg = error.response?.data?.error || "Something went wrong. Please try again.";
+      Alert.alert("Booking Failed", msg);
     } finally {
       setIsLoading(false);
     }
@@ -124,9 +134,6 @@ export default ({ navigation, route }: any) => {
         {/* Reason Section */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Reason</Text>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.changeLink}>Change</Text>
-          </TouchableOpacity>
         </View>
         <View style={styles.infoRow}>
           <View style={styles.iconCircle}>
@@ -151,21 +158,16 @@ export default ({ navigation, route }: any) => {
           <Text style={styles.paymentValue}>Rs. {adminFee}</Text>
         </View>
         <View style={styles.paymentRow}>
-          <Text style={styles.paymentLabel}>Additional Discount</Text>
-          <Text style={styles.paymentValue}>-</Text>
+          <Text style={styles.paymentLabel}>Total</Text>
+          <Text style={[styles.paymentValue, { color: '#199A8E', fontWeight: 'bold' }]}>Rs. {total}</Text>
         </View>
         
-        <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalValue}>Rs. {total}</Text>
-        </View>
-
         <View style={styles.divider} />
 
-        {/* Payment Method */}
+        {/* Payment Method (Visual Only) */}
         <Text style={[styles.sectionTitle, { marginBottom: 8 }]}>Payment Method</Text>
         <View style={styles.methodCard}>
-          <Text style={styles.visaText}>VISA</Text>
+          <Text style={styles.visaText}>Cash on Visit</Text>
           <TouchableOpacity>
             <Text style={styles.changeLink}>Change</Text>
           </TouchableOpacity>
