@@ -27,8 +27,8 @@ import {
   Square,
   Volume2
 } from "lucide-react-native";
-import { Audio } from 'expo-av'; // 🟢 NEW: Audio Library
-import { sendVoiceMessage } from '../../services/api'; // 🟢 NEW: Your API
+import { Audio } from 'expo-av'; 
+import { sendVoiceMessage, saveMedicalRecord } from '../../services/api'; 
 import styles from "./styles/AiAssistantStyles";
 
 // Enable animations
@@ -66,6 +66,13 @@ export default ({ navigation }: any) => {
 
   const scrollViewRef = useRef<ScrollView>(null);
   const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  const currentUserProfile = {
+    name: "Ali Khan", // Will be stripped by backend for privacy
+    age: 55,
+    gender: "Male",
+    conditions: "Hypertension, Diabetes Type 2",
+    allergies: "Penicillin"
+  };
 
   // 1. Initial Intro Sequence
   useEffect(() => {
@@ -163,12 +170,11 @@ export default ({ navigation }: any) => {
     
     if (!uri) return;
 
-    // Show loading state
     setVoiceProcessing(true);
     
     try {
       // Call your API
-      const response = await sendVoiceMessage(uri, selectedLanguage);
+      const response = await sendVoiceMessage(uri, selectedLanguage, currentUserProfile);
 
       if (response.success) {
         // 1. Show User Text (STT)
@@ -187,11 +193,25 @@ export default ({ navigation }: any) => {
           audioUrl: response.audio_url // Save audio URL for playback
         };
         setMessages(prev => [...prev, botMsg]);
+        const recordData = {
+            user_id: 1, // 🔴 Hardcoded for now (use Auth ID later)
+            title: "Voice Consultation",
+            doctor_name: "Sehat AI Assistant",
+            record_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+            record_type: "AI Consultation",
+            details: `User: ${response.user_text}\nAI: ${response.ai_text}`,
+            color_code: "#FEF9C3" // Yellow for notes
+        };
+
+        saveMedicalRecord(recordData)
+            .then(() => console.log("Record Saved to History"))
+            .catch(err => console.error("Save Error:", err));
 
         // 3. Auto-play Response
         playSound(response.audio_url);
       }
     } catch (error) {
+      console.error("FULL ERROR DETAILS:", error);
       Alert.alert("Error", "Could not process voice message.");
     } finally {
       setVoiceProcessing(false);

@@ -1,84 +1,156 @@
 import os
+import sys
+import socket
+from dotenv import load_dotenv
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import speech_recognition as sr
 from gtts import gTTS
-from pydub import AudioSegment
 import uuid
+import google.generativeai as genai
+import json
 
+# Load environment variables
+load_dotenv()
+
+# 🔴 FIX 1: Hardcode FFmpeg for Windows Stability
+# Ensure you extracted ffmpeg here: C:/ffmpeg/
+FFMPEG_BIN_PATH = "C:/ffmpeg-8.0.1-essentials_build/bin" 
+os.environ["PATH"] += os.pathsep + FFMPEG_BIN_PATH
+from pydub import AudioSegment
+
+# Set paths for BOTH ffmpeg and ffprobe
+AudioSegment.converter = os.path.join(FFMPEG_BIN_PATH, "ffmpeg.exe")
+AudioSegment.ffmpeg = os.path.join(FFMPEG_BIN_PATH, "ffmpeg.exe")
+AudioSegment.ffprobe = os.path.join(FFMPEG_BIN_PATH, "ffprobe.exe")
+if not os.path.exists(AudioSegment.converter):
+    print(f"❌ CRITICAL ERROR: FFmpeg not found at {AudioSegment.converter}")
+    print("Please check the path in app.py again!")
+else:
+    print(f"✅ FFmpeg found at {AudioSegment.converter}")
 app = Flask(__name__)
 CORS(app)
+
+# Initialize Generative AI
+api_key = os.getenv("GOOGLE_API_KEY")
+if not api_key:
+    print("❌ ERROR: GOOGLE_API_KEY is missing. Create a .env file!")
+else:
+    genai.configure(api_key=api_key)
 
 # Ensure 'temp' folder exists
 os.makedirs("temp", exist_ok=True)
 
-def process_ai_logic(text):
-    """
-    FE-1: NLP Processing (Mocked for now)
-    """
-    text = text.lower()
-    if "fever" in text or "bukhar" in text:
-        return "It sounds like you have a fever. Please monitor your temperature and stay hydrated. Do you want to book a doctor?"
-    elif "appointment" in text:
-        return "I can help with that. Which specialist do you need?"
-    elif "hello" in text or "salam" in text:
-        return "Walaikum Assalam. I am Sehat AI. How can I help you today?"
-    else:
-        return "I understood: " + text + ". However, I am still learning medical terms."
+# 🔴 FIX 2: Dynamic IP Detection
+def get_local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 1))
+        IP = s.getsockname()[0]
+        s.close()
+        return IP
+    except:
+        return '127.0.0.1'
+
+def process_ai_logic(user_text, full_user_profile):
+    try:
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        
+        # 🛡️ PRIVACY STEP: Anonymize the data
+        # Only keep clinical fields. Drop Name/Email/ID.
+        clinical_profile = {
+            "age": full_user_profile.get('age', 'Unknown'),
+            "gender": full_user_profile.get('gender', 'Unknown'),
+            "history": full_user_profile.get('conditions', 'None'),
+            "allergies": full_user_profile.get('allergies', 'None')
+        }
+        
+        # System Prompt with Context
+        system_prompt = f"""
+        You are Sehat AI, a medical assistant.
+        
+        PATIENT CONTEXT:
+        - Age: {clinical_profile['age']}
+        - Gender: {clinical_profile['gender']}
+        - Medical History: {clinical_profile['history']}
+        - Allergies: {clinical_profile['allergies']}
+        
+        User Query: "{user_text}"
+        
+        INSTRUCTIONS:
+        1. Analyze symptoms specifically for a {clinical_profile['age']}-year-old {clinical_profile['gender']}.
+        2. If their history ({clinical_profile['history']}) is relevant, you MUST mention it.
+        3. Do NOT use the patient's name (you don't have it).
+        4. Keep response under 2 sentences.
+        """
+        
+        print(f"🧠 AI Context: {clinical_profile}") # Debug log
+        
+        response = model.generate_content(system_prompt)
+        return response.text
+        
+    except Exception as e:
+        print(f"AI Error: {e}")
+        return "I am unable to connect to the brain."
 
 @app.route('/voice-chat', methods=['POST'])
 def voice_chat():
     try:
-        # 1. Check if audio file is present
         if 'audio' not in request.files:
             return jsonify({"error": "No audio file provided"}), 400
 
         audio_file = request.files['audio']
-        language_code = request.form.get('language', 'en-US') # FE-2: Multilingual Support
+        language_code = request.form.get('language', 'en-US')
 
-        # 2. Save and Convert Audio (Mobile formats -> WAV)
+        user_profile_str = request.form.get('userProfile', '{}')
+        try:
+            user_profile = json.loads(user_profile_str)
+        except:
+            user_profile = {} # Fallback if parsing fails
+
         filename = f"temp/{uuid.uuid4()}"
         input_path = f"{filename}.m4a"
         wav_path = f"{filename}.wav"
         
         audio_file.save(input_path)
         
-        # Convert m4a/aac to wav for SpeechRecognition
-        track = AudioSegment.from_file(input_path)
+        # Convert m4a to wav
+        track = AudioSegment.from_file(input_path, format="m4a")
         track.export(wav_path, format="wav")
 
-        # 3. Speech to Text (STT) - FE-3: Recognizes Accents
         recognizer = sr.Recognizer()
         with sr.AudioFile(wav_path) as source:
             audio_data = recognizer.record(source)
-            # Supports 'ur-PK' (Urdu) and 'en-US' (English)
-            user_text = recognizer.recognize_google(audio_data, language=language_code)
+            try:
+                user_text = recognizer.recognize_google(audio_data, language=language_code)
+            except sr.UnknownValueError:
+                user_text = "..." # No speech detected
+            except sr.RequestError:
+                user_text = "Error connecting to speech service"
 
         print(f"🗣️ User Said ({language_code}): {user_text}")
 
-        # 4. Process Logic (NLP)
-        ai_response_text = process_ai_logic(user_text)
+        # If silence, skip AI
+        if user_text == "...":
+            ai_response_text = "I didn't catch that. Could you say it again?"
+        else:
+            ai_response_text = process_ai_logic(user_text, user_profile)
 
-        # 5. Text to Speech (TTS) - FE-5
-        # Generate audio response
         tts = gTTS(text=ai_response_text, lang='en' if 'en' in language_code else 'ur')
         response_audio_path = f"{filename}_response.mp3"
         tts.save(response_audio_path)
 
-        # 6. Return Data
-        # In a real production app, upload MP3 to cloud (Firebase/S3) and return URL.
-        # For localhost, we return the text now, and the frontend can request the audio.
+        current_ip = get_local_ip()
         
         return jsonify({
             "success": True,
             "user_text": user_text,
             "ai_text": ai_response_text,
-            "audio_url": f"http://192.168.1.15:5001/get-audio/{os.path.basename(response_audio_path)}" 
-            # 🔴 REPLACE IP with your computer's IP
+            "audio_url": f"http://{current_ip}:5001/get-audio/{os.path.basename(response_audio_path)}"
         })
 
     except Exception as e:
-        print("Error:", e)
+        print("Server Error:", e)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/get-audio/<filename>', methods=['GET'])
