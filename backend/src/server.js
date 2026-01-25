@@ -9,6 +9,7 @@ const userRoutes = require('./routes/userRoutes');
 const doctorRoutes = require('./routes/doctorRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
 const aiRoutes = require('./routes/aiRoutes');
+const medicalRecordRoutes = require('./routes/medicalRecordRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -59,6 +60,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/records', medicalRecordRoutes);
 
 // ⚡ REAL-TIME EMERGENCY SOCKET LOGIC
 io.on('connection', (socket) => {
