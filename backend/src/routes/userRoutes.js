@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
+const appointmentController = require('../controllers/appointmentController');
 const { verifyToken, authorize } = require('../middleware/authMiddleware');
 
 router.get('/all-users', 
@@ -18,7 +19,7 @@ router.get('/:uid', userController.getUserProfile);
 router.get('/appointment/:id', 
   verifyToken, 
   authorize(['doctor', 'admin']), 
-  appointmentController.getDetails
+  appointmentController.getMyAppointments
 );
 
 
