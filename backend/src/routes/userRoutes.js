@@ -1,13 +1,26 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
+const { verifyToken, authorize } = require('../middleware/authMiddleware');
 
-router.get('/', userController.getAllUsers);
+router.get('/all-users', 
+  verifyToken, 
+  authorize(['admin']), 
+  userController.getAllUsers
+);
 
 // POST /api/users/sync -> Called after Login to save user to MySQL
 router.post('/sync', userController.syncUser);
 
 // GET /api/users/:uid -> Get full profile
 router.get('/:uid', userController.getUserProfile);
+
+router.get('/appointment/:id', 
+  verifyToken, 
+  authorize(['doctor', 'admin']), 
+  appointmentController.getDetails
+);
+
+
 
 module.exports = router;
