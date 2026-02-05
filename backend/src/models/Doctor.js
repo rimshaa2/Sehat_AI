@@ -17,7 +17,6 @@ const Doctor = sequelize.define('Doctor', {
     type: DataTypes.STRING,
     allowNull: false
   },
-  // ✅ KEPT YOUR FIELD (Renamed in my previous code, but let's stick to yours)
   experienceYears: {
     type: DataTypes.INTEGER,
     defaultValue: 0
@@ -30,8 +29,11 @@ const Doctor = sequelize.define('Doctor', {
     type: DataTypes.BOOLEAN,
     defaultValue: false
   },
-  
-  // 🟢 NEW FIELDS FOR APPOINTMENT MODULE
+  verificationStatus: {
+    type: DataTypes.ENUM('pending', 'verified', 'rejected'),
+    defaultValue: 'pending' // <--- This is the key!
+  },
+
   bio: {
     type: DataTypes.TEXT, // Longer text for "About Doctor"
     allowNull: true

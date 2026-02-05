@@ -1,30 +1,65 @@
 const { User, Doctor } = require('../models');
-const { redisClient } = require('../config/database');
-const { Op } = require('sequelize'); // For filtering (like Price < 5000)
+const { Op } = require('sequelize'); // Required for search filters
 
-// 1. Create/Update Doctor Profile
-// Reference: SDS 3.4.1.31 - Add New Doctor to System [cite: 622]
-exports.createDoctorProfile = async (req, res) => {
+// 1. Submit Application (The ONLY way to create a profile)
+exports.applyForDoctor = async (req, res) => {
   try {
-    const { userId, specialization, experienceYears, consultationFee, bio } = req.body;
+    const { specialization, licenseNumber, bio, experienceYears } = req.body;
+    
+    // 1. Security: Get ID from the verified Token, NOT the body
+    const firebaseUid = req.user.uid; 
+    
+    const user = await User.findOne({ where: { firebase_uid: firebaseUid } });
+    if (!user) return res.status(404).json({ error: "User not found" });
 
-    // Check if user exists
-    const user = await User.findByPk(userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
-
-    // Create or Update Doctor entry
-    const [doctor, created] = await Doctor.findOrCreate({
-      where: { userId },
-      defaults: { specialization, experienceYears, consultationFee, isVerified: false }
-    });
-
-    if (!created) {
-      // Update existing
-      await doctor.update({ specialization, experienceYears, consultationFee });
+    // 2. Check for existing application
+    const existingApplication = await Doctor.findOne({ where: { userId: user.id } });
+    if (existingApplication) {
+      return res.status(400).json({ error: "You have already submitted an application." });
     }
 
-    // ⚡ IMPORTANT: Invalidate Cache so new data shows up in search
-    // await redisClient.del('all_doctors'); 
+    // 3. Create Profile with 'pending' status
+    const newDoctor = await Doctor.create({
+      userId: user.id,
+      specialization,
+      licenseNumber,
+      bio,
+      experienceYears,
+      verificationStatus: 'pending' // Matches your new Model
+    });
+
+    res.status(201).json({ 
+      message: "Application submitted successfully", 
+      status: 'pending',
+      doctor: newDoctor
+    });
+
+  } catch (error) {
+    console.error("Application Error:", error);
+    res.status(500).json({ error: "Failed to submit application" });
+  }
+};
+
+// 2. Update Profile (For verified doctors to edit details)
+exports.updateDoctorProfile = async (req, res) => {
+  try {
+    const { specialization, experienceYears, consultationFee, bio } = req.body;
+    const firebaseUid = req.user.uid;
+
+    const user = await User.findOne({ where: { firebase_uid: firebaseUid } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Find the doctor profile belonging to this user
+    const doctor = await Doctor.findOne({ where: { userId: user.id } });
+    if (!doctor) return res.status(404).json({ error: 'Doctor profile not found' });
+
+    // Update allowed fields (Admin fields like status/license are NOT editable here)
+    await doctor.update({ 
+      specialization, 
+      experienceYears, 
+      consultationFee, 
+      bio 
+    });
 
     res.status(200).json({ success: true, doctor });
   } catch (error) {
@@ -32,46 +67,58 @@ exports.createDoctorProfile = async (req, res) => {
   }
 };
 
-// 2. Search Doctors (With Redis Caching)
-// Reference: SDS 4.1.2 - Dynamic Doctor Filtering Algorithm [cite: 1136]
+// 3. Check Status (Used by Frontend to direct traffic)
+exports.getDoctorStatus = async (req, res) => {
+  try {
+    const firebaseUid = req.user.uid;
+    const user = await User.findOne({ where: { firebase_uid: firebaseUid } });
+    
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const doctorProfile = await Doctor.findOne({ where: { userId: user.id } });
+
+    if (!doctorProfile) {
+      return res.json({ status: 'not_applied', role: user.role });
+    }
+
+    res.json({ 
+      status: doctorProfile.verificationStatus, 
+      role: user.role,
+      doctorDetails: doctorProfile 
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 4. Search Doctors (Admin/Patient View)
 exports.getAllDoctors = async (req, res) => {
   try {
     const { specialization, minPrice, maxPrice } = req.query;
 
-    // A. Build Filter Object for MySQL
     const whereClause = {};
     if (specialization) whereClause.specialization = specialization;
+    
+    // Only verify price if provided
     if (minPrice || maxPrice) {
       whereClause.consultationFee = {
         [Op.between]: [minPrice || 0, maxPrice || 100000]
       };
     }
 
-    // B. Redis Cache Logic (Hybrid Architecture)
-    // Only use cache if there are NO filters (for the "All Doctors" view)
-    // const cacheKey = 'all_doctors';
-    // if (Object.keys(whereClause).length === 0) {
-    //   const cachedData = await redisClient.get(cacheKey);
-    //   if (cachedData) {
-    //     console.log('⚡ Serving Doctors from Redis Cache');
-    //     return res.json(JSON.parse(cachedData));
-    //   }
-    // }
+    // IMPORTANT: Only show VERIFIED doctors to the public
+    // (Unless you are an Admin, but let's keep it safe for now)
+    // whereClause.verificationStatus = 'verified'; 
 
-    // C. Query MySQL (The Source of Truth)
     const doctors = await Doctor.findAll({
       where: whereClause,
       include: [{ 
         model: User, 
-        as: 'user', 
-        attributes: ['fullName'] // Fetch name from User table
+        as: 'user', // Ensure your Association in models/index.js matches this alias
+        attributes: ['fullName', 'email', 'phoneNumber'] 
       }]
     });
-
-    // D. Save to Redis (for 1 hour) if no filters
-    // if (Object.keys(whereClause).length === 0) {
-    //   await redisClient.setEx(cacheKey, 3600, JSON.stringify(doctors));
-    // }
 
     res.json(doctors);
   } catch (error) {
