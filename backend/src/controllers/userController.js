@@ -9,36 +9,42 @@ exports.syncUser = async (req, res) => {
   try {
     // 1. Verify Token
     const decodedToken = await admin.auth().verifyIdToken(idToken);
-    
-    // 2. Extract Data (Including phone number!)
     const { uid, email, name, picture, phone_number } = decodedToken;
 
-    // 3. Check if User exists (Using the correct column name)
-    // IMPORTANT: Check your User.js model. Is it 'firebase_uid' or 'firebaseUid'?
-    // Sequelize usually defaults to camelCase 'firebaseUid'. 
-    let user = await User.findOne({ where: { firebase_uid: uid } }); 
+    // 2. Check if User exists
+    let user = await User.findOne({ where: { firebase_uid: uid } });
 
     if (!user) {
-      console.log(`🆕 Creating New User: ${uid}`);
+      console.log(`🆕 Attempting to Create User: ${uid}`);
       
-      // 4. Create User (Handle missing email for Phone Auth)
-      user = await User.create({
-        firebase_uid: uid, // Check your User.js model name!
-        
-        // If email is missing (Phone Auth), generate a placeholder or save null
-        email: email || `${phone_number}@sehatai.placeholder.com`, 
-        
-        fullName: name || 'New User',
-        role: 'patient',
-        profilePicture: picture || null,
-        phoneNumber: phone_number || null // Save the phone number
-      });
+      try {
+        // 3. Try to Create User
+        user = await User.create({
+          firebase_uid: uid,
+          email: email || `${phone_number}@sehatai.placeholder.com`,
+          fullName: name || 'New User',
+          role: 'patient',
+          profilePicture: picture || null,
+          phoneNumber: phone_number || null
+        });
+      } catch (createError) {
+        // 4. HANDLE THE RACE CONDITION HERE
+        if (createError.name === 'SequelizeUniqueConstraintError') {
+          console.log("⚠️ Race condition detected: User was created by a parallel request. Fetching existing user...");
+          user = await User.findOne({ where: { firebase_uid: uid } });
+        } else {
+          // If it's a real error (not a duplicate), throw it
+          throw createError;
+        }
+      }
     }
 
+    // 5. Return the User (Success)
     res.status(200).json({ success: true, user });
+
   } catch (error) {
     console.error('Auth Sync Error:', error);
-    res.status(401).json({ error: 'Invalid Token or Database Error' });
+    res.status(401).json({ error: 'Invalid Token or Database Error', details: error.message });
   }
 };
 

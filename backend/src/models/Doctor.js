@@ -31,7 +31,7 @@ const Doctor = sequelize.define('Doctor', {
   },
   verificationStatus: {
     type: DataTypes.ENUM('pending', 'verified', 'rejected'),
-    defaultValue: 'pending' // <--- This is the key!
+    defaultValue: 'pending' 
   },
 
   bio: {
