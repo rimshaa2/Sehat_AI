@@ -38,6 +38,7 @@ exports.applyForDoctor = async (req, res) => {
       licenseNumber,
       bio,
       experienceYears: cleanExperience, // <--- Use the clean number
+      consultationFee:0,
       verificationStatus: "pending",
     });
 
