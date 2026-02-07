@@ -10,6 +10,7 @@ const doctorRoutes = require('./routes/doctorRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const medicalRecordRoutes = require('./routes/medicalRecordRoutes');
+const seedAdmin = require('./scripts/seedAdmin');
 
 const app = express();
 const server = http.createServer(app);
@@ -145,6 +146,7 @@ const startServer = async () => {
     // 2. THIS IS THE MISSING PART: Create/Update tables
     // 'alter: true' checks current tables and adds missing columns/tables without deleting data
     await sequelize.sync({ alter: true });
+    await seedAdmin(); // Ensure admin user exists on startup
     console.log('✅ Database Tables Synced (Users, Doctors, Appointments)');
 
   } catch (dbError) {
