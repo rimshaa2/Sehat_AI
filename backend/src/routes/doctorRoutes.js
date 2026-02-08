@@ -17,4 +17,7 @@ router.put('/verify/:doctorId',
   authorize(['admin']), // Only Admins can hit this
   adminController.verifyDoctor
 );
+
+router.get('/admin/all', verifyToken, authorize(['admin']), doctorController.getAllDoctorsForAdmin);
+
 module.exports = router;
