@@ -108,7 +108,7 @@ exports.getDoctorStatus = async (req, res) => {
   }
 };
 
-// 4. Search Doctors (Admin/Patient View)
+// 4. Search Doctors (Patient View)
 exports.getAllDoctors = async (req, res) => {
   try {
     const { specialization, minPrice, maxPrice } = req.query;
@@ -141,5 +141,23 @@ exports.getAllDoctors = async (req, res) => {
     res.json(doctors);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+// 🔹 ADMIN ONLY: Get ALL doctors (Pending + Verified)
+exports.getAllDoctorsForAdmin = async (req, res) => {
+  try {
+    const doctors = await Doctor.findAll({
+      include: [{
+        model: User,
+        as: 'user',
+        attributes: ['id', 'fullName', 'email', 'phoneNumber'] // Get user details
+      }],
+      order: [['createdAt', 'DESC']] // Newest applications first
+    });
+    res.json(doctors);
+  } catch (error) {
+    console.error("Fetch Error:", error);
+    res.status(500).json({ error: "Failed to fetch doctor list" });
   }
 };
