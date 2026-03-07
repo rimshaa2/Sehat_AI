@@ -29,53 +29,61 @@ exports.verifyDoctor = async (req, res) => {
   }
 };
 
+// src/controllers/adminController.js
+
 exports.registerDoctor = async (req, res) => {
+  // Extract user fields from the nested 'user' object sent by the frontend
   const {
-    fullName,
-    email,
+    user,
     specialization,
+    licenseNumber,
     experienceYears,
     consultationFee,
-    licenseNumber,
-    bio,
   } = req.body;
+
+  const { fullName, email } = user; // Extract from the nested object
 
   const t = await sequelize.transaction();
 
   try {
-    // 1. Create User
+    // 1. Check if user exists
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser)
+      return res.status(400).json({ error: "Email already exists" });
+
+    // 2. Create User
     const newUser = await User.create(
       {
         fullName,
         email,
-        password: await bcrypt.hash("DefaultPass123!", 10),
+        password: await bcrypt.hash("TempPass123!", 10),
         role: "doctor",
       },
       { transaction: t },
     );
 
-    // 2. Create Doctor Profile (Matching your model fields)
+    // 3. Create Doctor Profile
     await Doctor.create(
       {
         userId: newUser.id,
         specialization,
-        experienceYears,
-        consultationFee,
         licenseNumber,
-        bio,
-        isVerified: true,
+        experienceYears: Number(experienceYears),
+        consultationFee: Number(consultationFee),
         verificationStatus: "verified",
       },
       { transaction: t },
     );
 
     await t.commit();
-    res.status(201).json({ message: "Doctor added successfully" });
+    res.status(201).json({ message: "Doctor registered successfully" });
   } catch (error) {
     await t.rollback();
+    console.error("Internal Error:", error);
     res.status(500).json({ error: error.message });
   }
 };
+
 exports.updateDoctor = async (req, res) => {
   const { doctorId } = req.params;
   const { fullName, specialization, experienceYears, consultationFee, bio } =
