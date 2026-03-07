@@ -11,6 +11,17 @@ router.post(
   authorize(["admin"]),
   adminController.registerDoctor,
 );
-console.log("adminController:", Object.keys(adminController));
+router.put(
+  "/doctor/:doctorId",
+  verifyToken,
+  authorize(["admin"]),
+  adminController.updateDoctor,
+);
+router.delete(
+  "/doctor/:doctorId",
+  verifyToken,
+  authorize(["admin"]),
+  adminController.deleteDoctor,
+);
 
 module.exports = router;
