@@ -1,5 +1,6 @@
 const { User, Doctor } = require("../models");
 const bcrypt = require("bcrypt");
+const { sequelize } = require("../models");
 
 exports.verifyDoctor = async (req, res) => {
   const { doctorId } = req.params;
