@@ -1,4 +1,4 @@
-const { User, Doctor } = require("../models");
+const { User, Doctor, Appointment } = require("../models");
 const { Op } = require("sequelize"); // Required for search filters
 
 // 1. Submit Application (The ONLY way to create a profile)
@@ -112,6 +112,8 @@ exports.getDashboardStats = async (req, res) => {
   try {
     // 1. Get the local User ID from the Firebase UID (provided by your auth middleware)
     const user = await User.findOne({ where: { firebase_uid: req.user.uid } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
     const doctorProfile = await Doctor.findOne({ where: { userId: user.id } });
 
     if (!doctorProfile) return res.status(404).json({ error: "Doctor profile not found" });
@@ -136,7 +138,7 @@ exports.getDashboardStats = async (req, res) => {
           as: 'patient', 
           attributes: ['fullName', 'phoneNumber'] 
         }],
-        order: [['appointmentTime', 'ASC']]
+        order: [['timeSlot', 'ASC']]
       })
     ]);
 
