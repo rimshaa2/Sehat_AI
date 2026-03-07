@@ -35,58 +35,46 @@ exports.registerDoctor = async (req, res) => {
     fullName,
     email,
     specialization,
-    licenseNumber,
     experienceYears,
-    password,
+    consultationFee,
+    licenseNumber,
+    bio,
   } = req.body;
 
-  // Start a transaction
   const t = await sequelize.transaction();
 
   try {
-    // 1. Check if user already exists
-    const existingUser = await User.findOne({ where: { email } });
-    if (existingUser) {
-      return res.status(400).json({ error: "Email already registered" });
-    }
-
-    // 2. Create the User (Role is 'doctor' by default for this admin action)
-    const hashedPassword = await bcrypt.hash(password || "TempPass123!", 10);
+    // 1. Create User
     const newUser = await User.create(
       {
         fullName,
         email,
-        password: hashedPassword,
-        role: "doctor", // Admin created doctors are automatically doctors
-        phoneNumber: req.body.phoneNumber || "",
+        password: await bcrypt.hash("DefaultPass123!", 10),
+        role: "doctor",
       },
       { transaction: t },
     );
 
-    // 3. Create the Doctor Profile linked to that User
+    // 2. Create Doctor Profile (Matching your model fields)
     await Doctor.create(
       {
         userId: newUser.id,
         specialization,
-        licenseNumber,
         experienceYears,
-        verificationStatus: "verified", // Admin-added doctors bypass the pending stage
-        consultationFee: req.body.consultationFee || 500,
+        consultationFee,
+        licenseNumber, // Ensure this field is in your actual DB table
+        bio,
+        isVerified: true, // Matches your Boolean field
+        verificationStatus: "verified", // Matches your ENUM field
       },
       { transaction: t },
     );
 
-    // If everything is successful, commit the transaction
     await t.commit();
-
-    res.status(201).json({
-      message: `Dr. ${fullName} has been successfully registered and verified.`,
-    });
+    res.status(201).json({ message: "Doctor added successfully" });
   } catch (error) {
-    // If any step fails, roll back the entire operation
     await t.rollback();
-    console.error("Registration Error:", error);
-    res.status(500).json({ error: "Failed to create doctor account" });
+    res.status(500).json({ error: error.message });
   }
 };
 
