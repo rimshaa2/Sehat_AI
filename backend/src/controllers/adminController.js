@@ -89,3 +89,8 @@ exports.registerDoctor = async (req, res) => {
     res.status(500).json({ error: "Failed to create doctor account" });
   }
 };
+
+console.log(
+  "Controller loaded. Available functions:",
+  Object.keys(module.exports),
+);

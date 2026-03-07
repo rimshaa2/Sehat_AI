@@ -11,5 +11,6 @@ router.post(
   adminOnly,
   adminController.registerDoctor,
 );
+console.log("adminController:", Object.keys(adminController));
 
 module.exports = router;
