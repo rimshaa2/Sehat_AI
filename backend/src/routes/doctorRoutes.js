@@ -21,4 +21,8 @@ router.put('/verify/:doctorId',
 
 router.get('/admin/all', verifyToken, authorize(['admin']), doctorController.getAllDoctorsForAdmin);
 
+// ── Availability ──
+router.get('/availability', verifyToken, doctorController.getAvailability);
+router.put('/availability', verifyToken, doctorController.saveAvailability);
+
 module.exports = router;
