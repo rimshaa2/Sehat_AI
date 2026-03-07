@@ -4,7 +4,7 @@ const router = express.Router();
 const adminController = require("../controllers/adminController");
 const { protect, adminOnly } = require("../middleware/authMiddleware");
 
-// Add the new registration rout
+// Add the new registration route
 router.post(
   "/register-doctor",
   protect,
