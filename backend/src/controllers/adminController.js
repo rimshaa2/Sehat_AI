@@ -1,5 +1,5 @@
 const { User, Doctor } = require("../models");
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
 
 exports.verifyDoctor = async (req, res) => {
   const { doctorId } = req.params;
