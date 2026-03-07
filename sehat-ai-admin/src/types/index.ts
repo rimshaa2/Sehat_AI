@@ -1,10 +1,15 @@
-export interface Doctor {
-  id: string;
-  name: string;
-  email: string;
+export type Doctor = {
+  id: number;
   specialization: string;
-  licenseNumber: string; 
-  status: 'pending' | 'verified' | 'rejected';
-  appliedDate: string;
-  avatarUrl?: string;
-}
+  licenseNumber: string;
+  verificationStatus: "pending" | "verified" | "rejected";
+  experienceYears: number;
+  consultationFee: number;
+  bio: string;
+  createdAt: string;
+  user: {
+    fullName: string;
+    email: string;
+    phoneNumber: string;
+  };
+};
