@@ -46,7 +46,7 @@ const seedAdmin = async () => {
       is_active: true,
     });
 
-    console.log(`🎉 SUCCESS: Admin created! Login with: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
+    console.log(`🎉 SUCCESS: Admin created!` );
 
   } catch (error) {
     console.error('❌ Failed to seed admin:', error.message);
