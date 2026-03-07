@@ -9,7 +9,7 @@ import {
   StyleSheet,
   Image,
 } from "react-native";
-import { ChevronLeft, Search, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, Search, ChevronRight, X } from "lucide-react-native";
 import styles from "./styles/BookAppointmentStyles";
 // Dummy Data for Medical Categories
 const SPECIALTIES = [

@@ -9,7 +9,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import { ChevronLeft, Star, MapPin, Calendar, PenTool } from "lucide-react";
+import { ChevronLeft, Star, MapPin, Calendar, PenTool } from "lucide-react-native";;
 import { getAuth } from "@react-native-firebase/auth";
 import { getFirestore, collection, addDoc, serverTimestamp } from "@react-native-firebase/firestore";
 import styles from "./styles/PaymentScreenStyles";

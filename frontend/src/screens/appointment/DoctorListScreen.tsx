@@ -13,7 +13,7 @@ import {
   Modal,
   TouchableWithoutFeedback,
 } from "react-native";
-import { ChevronLeft, Search, Star, ChevronDown, X } from "lucide-react";
+import { ChevronLeft, Search, Star, ChevronDown, X } from "lucide-react-native";;
 import { getFirestore, collection, query, where, getDocs } from "@react-native-firebase/firestore";
 import styles from "./styles/DoctorListStyles";
 

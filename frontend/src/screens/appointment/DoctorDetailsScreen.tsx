@@ -13,7 +13,7 @@ import {
   Modal,
   TouchableWithoutFeedback,
 } from "react-native";
-import { ChevronLeft, Search, Star, ChevronDown, X } from "lucide-react";
+import { ChevronLeft, Search, Star, ChevronDown, X } from "lucide-react-native";;
 
 // 🔴 REMOVED: Firestore imports
 // 🟢 ADDED: API Service Import
@@ -126,7 +126,7 @@ export default ({ navigation, route }: any) => {
         <Text style={styles.price}>{item.price}</Text>
       </View>
       <View style={styles.ratingContainer}>
-        <Star size={14} strokeColor="#F59E0B" fillColor="#F59E0B" />
+        <Star size={14} color="#F59E0B" fill="#F59E0B" />
         <Text style={styles.ratingText}>{item.rating}</Text>
       </View>
     </TouchableOpacity>

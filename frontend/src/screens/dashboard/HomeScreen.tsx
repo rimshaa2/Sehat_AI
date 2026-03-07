@@ -212,13 +212,15 @@ export default ({ navigation }: any) => {
             subtitle="get reminded to take medicines"
             icon={{ uri: 'https://cdn-icons-png.flaticon.com/512/883/883360.png' }}
             color="#FFF5EB" 
+            onPress={() => navigation.navigate("MedicineDashboard")}
           />
           <GridItem 
             title="Mental Wellness" 
             subtitle="seek Mental health support"
             icon={{ uri: 'https://cdn-icons-png.flaticon.com/512/2913/2913520.png' }}
             color="#FEFCE4" 
-          />
+            onPress={() => navigation.navigate("MentalHealth")}
+/>
         </View>
 
         {/* Promo Banner */}
