@@ -108,6 +108,53 @@ exports.getDoctorStatus = async (req, res) => {
   }
 };
 
+exports.getDashboardStats = async (req, res) => {
+  try {
+    // 1. Get the local User ID from the Firebase UID (provided by your auth middleware)
+    const user = await User.findOne({ where: { firebase_uid: req.user.uid } });
+    const doctorProfile = await Doctor.findOne({ where: { userId: user.id } });
+
+    if (!doctorProfile) return res.status(404).json({ error: "Doctor profile not found" });
+
+    const doctorId = doctorProfile.id;
+    const today = new Date().toISOString().split('T')[0];
+
+    // 2. Run parallel queries for speed
+    const [todayCount, patientCount, recentApts] = await Promise.all([
+      // Count today's appointments
+      Appointment.count({ where: { doctorId, appointmentDate: today } }),
+      
+      // Count unique patients seen by this doctor
+      Appointment.count({ where: { doctorId }, distinct: true, col: 'patientId' }),
+      
+      // Get the next 5 upcoming appointments for the table
+      Appointment.findAll({
+        where: { doctorId, appointmentDate: today },
+        limit: 5,
+        include: [{ 
+          model: User, 
+          as: 'patient', 
+          attributes: ['fullName', 'phoneNumber'] 
+        }],
+        order: [['appointmentTime', 'ASC']]
+      })
+    ]);
+
+    res.json({
+      stats: {
+        todayAppts: todayCount,
+        totalPatients: patientCount,
+        upcoming: 28, // Replace with count of future dates if needed
+        emergencies: 2 // You can add a 'priority' column to Appointments later
+      },
+      appointments: recentApts
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // 4. Search Doctors (Patient View)
 exports.getAllDoctors = async (req, res) => {
   try {

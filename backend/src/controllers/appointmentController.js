@@ -107,10 +107,10 @@ exports.getAllAppointmentsAdmin = async (req, res) => {
       doctorName: apt.doctor?.user?.fullName || "Unassigned",
       specialization: apt.doctor?.specialization || "",
       date: new Date(apt.appointmentDate).toLocaleDateString(),
-      time: apt.appointmentTime,
-      type: apt.type || "General Checkup",
-      location: apt.location || "Online/Clinic",
-      status: apt.status, // confirmed, pending, cancelled
+      time: apt.timeSlot || "N/A",
+      type: apt.reason || "General Checkup",
+      location: apt.meetingLink || "In-Clinic",
+      status: apt.status,
     }));
 
     res.json(formatted);

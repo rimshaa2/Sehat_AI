@@ -8,6 +8,7 @@ const { verifyToken, authorize } = require('../middleware/authMiddleware');
 router.get('/', verifyToken, doctorController.getAllDoctors);
 
 router.post('/apply', verifyToken, doctorController.applyForDoctor);
+router.get('/dashboard-stats', verifyToken, doctorController.getDashboardStats);
 
 // 2. Check My Status (Used by Frontend to decide what screen to show)
 router.get('/status', verifyToken, doctorController.getDoctorStatus);
