@@ -58,10 +58,11 @@ export const DoctorApplication = () => {
                   }
                   required
                 >
-                  <option value="">Select...</option>
-                  <option value="Cardiologist">Cardiologist</option>
-                  <option value="Dermatologist">Dermatologist</option>
-                  <option value="General Physician">General Physician</option>
+                  <option value="" disabled>Select...</option>
+                  <option value="Ear, Nose & Throat">Ear, Nose & Throat</option>
+                  <option value="Mental wellness">Mental wellness</option>
+                  <option value="Dental">Dental</option>
+                  <option value="Bones">Bones</option>
                 </select>
               </div>
             </div>

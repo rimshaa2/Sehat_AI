@@ -10,15 +10,14 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { ChevronLeft, MoreVertical } from "lucide-react-native";
-import { getFirestore, doc, deleteDoc, updateDoc } from "@react-native-firebase/firestore";
+import { cancelAppointment } from "../../services/api";
 import styles from "./styles/AppointmentDetailStyles";
 
 export default ({ navigation, route }: any) => {
   // Get the appointment object passed from Home
   const { appointment } = route.params || {};
-  const [loading, setLoading] = useState(false);
 
-  const db = getFirestore();
+  const [loading, setLoading] = useState(false);
 
   // --- DELETE (Cancel) Operation ---
   const handleCancelAppointment = () => {
@@ -27,13 +26,13 @@ export default ({ navigation, route }: any) => {
       "Are you sure you want to cancel this appointment? This action cannot be undone.",
       [
         { text: "No", style: "cancel" },
-        { 
-          text: "Yes, Cancel", 
+        {
+          text: "Yes, Cancel",
           style: "destructive",
           onPress: async () => {
             setLoading(true);
             try {
-              await deleteDoc(doc(db, "appointments", appointment.id));
+              await cancelAppointment(appointment.id);
               Alert.alert("Cancelled", "Appointment has been cancelled successfully.");
               navigation.goBack(); // Go back to Home to refresh
             } catch (error) {
@@ -77,9 +76,9 @@ export default ({ navigation, route }: any) => {
 
         {/* Doctor Info */}
         <View style={styles.doctorCard}>
-          <Image 
-            source={{ uri: appointment.doctorImage || 'https://via.placeholder.com/150' }} 
-            style={styles.doctorImage} 
+          <Image
+            source={{ uri: appointment.doctorImage || 'https://via.placeholder.com/150' }}
+            style={styles.doctorImage}
           />
           <View style={styles.doctorInfo}>
             <Text style={styles.doctorName}>{appointment.doctorName}</Text>
@@ -89,12 +88,12 @@ export default ({ navigation, route }: any) => {
 
         {/* Details List */}
         <Text style={styles.sectionTitle}>Visit Information</Text>
-        
+
         <View style={styles.detailRow}>
           <Text style={styles.label}>Date</Text>
           <Text style={styles.value}>{appointment.date}</Text>
         </View>
-        
+
         <View style={styles.detailRow}>
           <Text style={styles.label}>Time</Text>
           <Text style={styles.value}>{appointment.time}</Text>
