@@ -214,7 +214,8 @@ exports.getDoctorSlots = async (req, res) => {
 
   try {
     // 1. Get Day of Week (e.g. "Monday")
-    const dateObj = new Date(date);
+    const [year, month, day] = date.split('-');
+    const dateObj = new Date(year, month - 1, day);
     const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
 
     // 2. Fetch Availability for this day
