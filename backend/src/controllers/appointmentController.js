@@ -63,15 +63,28 @@ exports.getMyAppointments = async (req, res) => {
     if (role === "patient") whereClause.patientId = userId;
     else if (role === "doctor") whereClause.doctorId = userId;
 
+    const include = [];
+    if (role === "patient") {
+      include.push({
+        model: Doctor,
+        as: "doctor",
+        include: [{
+          model: User,
+          as: "user",
+          attributes: ["fullName", "email"]
+        }],
+      });
+    } else {
+      include.push({
+        model: User,
+        as: "patient",
+        attributes: ["fullName", "email"]
+      });
+    }
+
     const appointments = await Appointment.findAll({
       where: whereClause,
-      include: [
-        {
-          model: User,
-          as: role === "patient" ? "doctor" : "patient", // If I'm patient, show Doctor details
-          attributes: ["fullName", "email"],
-        },
-      ],
+      include: include,
       order: [["appointmentDate", "ASC"]],
     });
 
