@@ -153,6 +153,44 @@ exports.cancelAppointment = async (req, res) => {
   }
 };
 
+// 3.5 Reschedule Appointment
+exports.rescheduleAppointment = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { appointmentDate, timeSlot } = req.body;
+
+    const appt = await Appointment.findByPk(id, { transaction: t });
+    if (!appt) {
+      await t.rollback();
+      return res.status(404).json({ error: "Appointment not found" });
+    }
+
+    // Check for double booking
+    const existing = await Appointment.findOne({
+      where: { doctorId: appt.doctorId, appointmentDate, timeSlot, status: "scheduled" },
+      transaction: t,
+    });
+
+    if (existing && existing.id !== appt.id) {
+      await t.rollback();
+      return res.status(409).json({ error: "This slot is already booked for the selected doctor." });
+    }
+
+    appt.appointmentDate = appointmentDate;
+    appt.timeSlot = timeSlot;
+    appt.status = "scheduled"; // Reset to scheduled if it was cancelled
+    await appt.save({ transaction: t });
+
+    await t.commit();
+    res.json({ success: true, message: "Appointment rescheduled successfully", appointment: appt });
+  } catch (error) {
+    await t.rollback();
+    console.error("Reschedule Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // 4. Browse Available Doctors (Activity: "Browse Available Doctors")
 exports.getDoctors = async (req, res) => {
   const { specialty } = req.query;
@@ -172,19 +210,59 @@ exports.getDoctors = async (req, res) => {
 // 5. Check Availability (Sequence: "checkAvailability() -> returnAvailableSlots()")
 exports.getDoctorSlots = async (req, res) => {
   const { doctorId } = req.params;
-  const { date } = req.query; // e.g. "2026-01-25" (which is a Sunday)
+  const { date } = req.query; // e.g. "2026-03-15"
 
-  // LOGIC: In a real app, we check if the day matches the doctor's schedule
-  // For now, let's return mock slots to get the UI working.
-  const mockSlots = ["09:00", "10:00", "11:30", "14:00", "16:00"];
+  try {
+    // 1. Get Day of Week (e.g. "Monday")
+    const dateObj = new Date(date);
+    const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
 
-  // Filter out slots that are already booked in the Appointments table
-  const existingBookings = await Appointment.findAll({
-    where: { doctorId, appointmentDate: date },
-  });
+    // 2. Fetch Availability for this day
+    const { Availability } = require("../models"); // Ensure it's imported
+    const availability = await Availability.findOne({
+      where: { doctorId, dayOfWeek, isAvailable: true }
+    });
 
-  const bookedTimes = existingBookings.map((a) => a.timeSlot.substring(0, 5)); // "09:00"
-  const available = mockSlots.filter((time) => !bookedTimes.includes(time));
+    if (!availability) {
+      return res.json({ date, availableSlots: [] });
+    }
 
-  res.json({ date, availableSlots: available });
+    // 3. Generate 30 min slots
+    const startHour = parseInt(availability.startTime.split(':')[0]);
+    const startMin = parseInt(availability.startTime.split(':')[1]);
+    const endHour = parseInt(availability.endTime.split(':')[0]);
+    const endMin = parseInt(availability.endTime.split(':')[1]);
+
+    const slots = [];
+    let currentHour = startHour;
+    let currentMin = startMin;
+
+    while (currentHour < endHour || (currentHour === endHour && currentMin < endMin)) {
+      const ampm = currentHour >= 12 ? 'PM' : 'AM';
+      const displayHour = currentHour > 12 ? currentHour - 12 : (currentHour === 0 ? 12 : currentHour);
+      const displayMin = currentMin === 0 ? '00' : currentMin;
+      const formattedSlot = `${displayHour < 10 ? '0' : ''}${displayHour}:${displayMin} ${ampm}`;
+      
+      slots.push(formattedSlot);
+
+      currentMin += 30;
+      if (currentMin >= 60) {
+        currentHour += 1;
+        currentMin = 0;
+      }
+    }
+
+    // 4. Filter out already booked slots
+    const existingBookings = await Appointment.findAll({
+      where: { doctorId, appointmentDate: date, status: "scheduled" },
+    });
+
+    const bookedTimes = existingBookings.map((a) => a.timeSlot);
+    const validSlots = slots.filter((time) => !bookedTimes.includes(time));
+
+    res.json({ date, availableSlots: validSlots });
+  } catch (error) {
+    console.error("Get Slots Error:", error);
+    res.status(500).json({ error: error.message });
+  }
 };

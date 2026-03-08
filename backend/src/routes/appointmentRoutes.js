@@ -18,6 +18,9 @@ router.get(
 // PATCH /api/appointments/:id/cancel -> Cancel
 router.patch("/:id/cancel", appointmentController.cancelAppointment);
 
+// PATCH /api/appointments/:id/reschedule -> Reschedule
+router.patch("/:id/reschedule", appointmentController.rescheduleAppointment);
+
 router.get("/doctors", appointmentController.getDoctors);
 router.get("/doctors/:doctorId/slots", appointmentController.getDoctorSlots);
 
