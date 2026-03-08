@@ -1,5 +1,6 @@
 const { User, Doctor, sequelize } = require("../models");
 const bcrypt = require("bcrypt");
+const admin = require("../config/firebase");
 
 exports.verifyDoctor = async (req, res) => {
   const { doctorId } = req.params;
@@ -51,12 +52,28 @@ exports.registerDoctor = async (req, res) => {
     if (existingUser)
       return res.status(400).json({ error: "Email already exists" });
 
-    // 2. Create User
+    // 2. Create Firebase Auth User
+    let firebaseUser;
+    if (admin) {
+      try {
+        firebaseUser = await admin.auth().createUser({
+          email,
+          password: "TemporaryPassword123!",
+          displayName: fullName,
+        });
+      } catch (fbError) {
+        // If Firebase creation fails, abort transaction
+        await t.rollback();
+        return res.status(400).json({ error: "Firebase Error: " + fbError.message });
+      }
+    }
+
+    // 3. Create User in MySQL
     const newUser = await User.create(
       {
         fullName,
         email,
-        password: await bcrypt.hash("TempPass123!", 10),
+        password: await bcrypt.hash("TemporaryPassword123!", 10),
         role: "doctor",
       },
       { transaction: t },
