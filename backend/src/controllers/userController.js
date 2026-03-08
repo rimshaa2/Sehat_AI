@@ -11,8 +11,19 @@ exports.syncUser = async (req, res) => {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const { uid, email, name, picture, phone_number } = decodedToken;
 
-    // 2. Check if User exists
+    // 2. Check if User exists by firebase_uid
     let user = await User.findOne({ where: { firebase_uid: uid } });
+
+    // 2.5 FALLBACK: Check if an Admin created this User by email but didn't link the UID
+    if (!user && email) {
+      const emailMatch = await User.findOne({ where: { email } });
+      if (emailMatch) {
+         console.log(`🔗 Linking existing User ${email} to Firebase UID: ${uid}`);
+         emailMatch.firebase_uid = uid;
+         await emailMatch.save();
+         user = emailMatch;
+      }
+    }
 
     if (!user) {
       console.log(`🆕 Attempting to Create User: ${uid}`);

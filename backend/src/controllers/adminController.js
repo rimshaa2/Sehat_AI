@@ -71,6 +71,7 @@ exports.registerDoctor = async (req, res) => {
     // 3. Create User in MySQL
     const newUser = await User.create(
       {
+        firebase_uid: firebaseUser ? firebaseUser.uid : null,
         fullName,
         email,
         password: await bcrypt.hash("TemporaryPassword123!", 10),
