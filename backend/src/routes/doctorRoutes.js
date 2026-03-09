@@ -21,6 +21,9 @@ router.put('/verify/:doctorId',
 
 router.get('/admin/all', verifyToken, authorize(['admin']), doctorController.getAllDoctorsForAdmin);
 
+// ── Profile ──
+router.put('/profile', verifyToken, doctorController.updateDoctorProfile);
+
 // ── Availability ──
 router.get('/availability', verifyToken, doctorController.getAvailability);
 router.put('/availability', verifyToken, doctorController.saveAvailability);
