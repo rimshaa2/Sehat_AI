@@ -1,7 +1,7 @@
 const { DataTypes } = require("sequelize");
 const { sequelize } = require("../config/database");
 
-// Reference: SDS Table 12 - Appointment Table Dictionary
+// Reference: SDS Table 12 - Appointment Table Dictionaryy
 const Appointment = sequelize.define(
   "Appointment",
   {
