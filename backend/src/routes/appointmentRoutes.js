@@ -15,6 +15,9 @@ router.get(
   appointmentController.getAllAppointmentsAdmin,
 );
 
+// PATCH /api/appointments/:id/status -> Update status (completed, no-show, etc)
+router.patch("/:id/status", appointmentController.updateAppointmentStatus);
+
 // PATCH /api/appointments/:id/cancel -> Cancel
 router.patch("/:id/cancel", appointmentController.cancelAppointment);
 
