@@ -24,4 +24,7 @@ router.patch("/:id/reschedule", appointmentController.rescheduleAppointment);
 router.get("/doctors", appointmentController.getDoctors);
 router.get("/doctors/:doctorId/slots", appointmentController.getDoctorSlots);
 
+// DELETE /api/appointments/:id -> Delete
+router.delete("/:id", appointmentController.deleteAppointment);
+
 module.exports = router;

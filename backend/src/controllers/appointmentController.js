@@ -120,6 +120,7 @@ exports.getAllAppointmentsAdmin = async (req, res) => {
       doctorName: apt.doctor?.user?.fullName || "Unassigned",
       specialization: apt.doctor?.specialization || "",
       date: new Date(apt.appointmentDate).toLocaleDateString(),
+      rawDate: apt.appointmentDate instanceof Date ? apt.appointmentDate.toISOString().split('T')[0] : apt.appointmentDate,
       time: apt.timeSlot || "N/A",
       type: apt.reason || "General Checkup",
       location: apt.meetingLink || "In-Clinic",
@@ -148,6 +149,20 @@ exports.cancelAppointment = async (req, res) => {
     // await redisClient.del(`doctor_slots_${appt.doctorId}`);
 
     res.json({ success: true, message: "Appointment cancelled" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 3.1 Delete Appointment
+exports.deleteAppointment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const appt = await Appointment.findByPk(id);
+    if (!appt) return res.status(404).json({ error: "Appointment not found" });
+
+    await appt.destroy();
+    res.json({ success: true, message: "Appointment deleted completely" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
