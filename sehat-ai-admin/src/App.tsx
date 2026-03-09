@@ -19,6 +19,7 @@ import { AppointmentsManagement } from "./pages/appointments/AppointmentManageme
 import { DoctorDashboard } from "./features/doctors/DoctorDashboard";
 import { DoctorLayout } from "./features/doctors/DoctorLayout";
 import { MyAppointments } from "./pages/appointments/MyAppointments";
+import { ScheduleManagement } from "./pages/schedule/ScheduleManagement";
 
 function App() {
   return (
@@ -88,7 +89,7 @@ function App() {
             />
             <Route
               path="schedule"
-              element={<div className="p-8">Schedule Management</div>}
+              element={<ScheduleManagement />}
             />
           </Route>
 
