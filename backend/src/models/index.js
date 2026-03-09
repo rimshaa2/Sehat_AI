@@ -5,7 +5,7 @@ const User = require('./User');
 const Doctor = require('./Doctor');
 const Appointment = require('./Appointment');
 const Availability = require('./Availability'); 
-const MedicalRecord = require('./MedicalRecord');
+const MedicalRecord = require('./medicalRecord');
 
 // 2. Define Relationships
 
