@@ -145,14 +145,20 @@ export const DoctorModal = ({
                   className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"
                   size={18}
                 />
-                <input
+                <select
                   required
                   value={formData.specialization}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#199A8E] outline-none"
+                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#199A8E] outline-none appearance-none"
                   onChange={(e) =>
                     setFormData({ ...formData, specialization: e.target.value })
                   }
-                />
+                >
+                  <option value="" disabled>Select Specialization</option>
+                  <option value="Ear, Nose & Throat">Ear, Nose & Throat</option>
+                  <option value="Mental wellness">Mental wellness</option>
+                  <option value="Dental">Dental</option>
+                  <option value="Bones">Bones</option>
+                </select>
               </div>
             </div>
 

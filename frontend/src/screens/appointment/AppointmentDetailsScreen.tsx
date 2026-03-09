@@ -10,15 +10,14 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { ChevronLeft, MoreVertical } from "lucide-react-native";
-import { getFirestore, doc, deleteDoc, updateDoc } from "@react-native-firebase/firestore";
+import { cancelAppointment } from "../../services/api";
 import styles from "./styles/AppointmentDetailStyles";
 
 export default ({ navigation, route }: any) => {
   // Get the appointment object passed from Home
   const { appointment } = route.params || {};
-  const [loading, setLoading] = useState(false);
 
-  const db = getFirestore();
+  const [loading, setLoading] = useState(false);
 
   // --- DELETE (Cancel) Operation ---
   const handleCancelAppointment = () => {
@@ -33,7 +32,7 @@ export default ({ navigation, route }: any) => {
           onPress: async () => {
             setLoading(true);
             try {
-              await deleteDoc(doc(db, "appointments", appointment.id));
+              await cancelAppointment(appointment.id);
               Alert.alert("Cancelled", "Appointment has been cancelled successfully.");
               navigation.goBack(); // Go back to Home to refresh
             } catch (error) {

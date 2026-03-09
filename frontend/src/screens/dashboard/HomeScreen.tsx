@@ -60,6 +60,7 @@ export default ({ navigation }: any) => {
               // C. Map Backend Data to UI Structure
               setNextAppointment({
                 id: upcoming.id,
+                doctorId: upcoming.doctorId,
                 doctorName: upcoming.doctor?.user?.fullName || "Unknown Doctor",
                 doctorSpecialty: upcoming.doctor?.specialization || "General",
                 doctorImage: upcoming.doctor?.user?.profilePicture,

@@ -4,12 +4,27 @@ import { Platform } from 'react-native';
 // 🟢 Python Backend (Keep Local for now if running on laptop)
 const PYTHON_URL = 'http://192.168.100.153:5001';
 
-// 🔵 Node.js Backend (Uses your .env variable)
+import { getAuth } from '@react-native-firebase/auth';
+
 const api = axios.create({
   baseURL: process.env.EXPO_PUBLIC_API_URL, 
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+api.interceptors.request.use(async (config) => {
+  try {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (user) {
+      const token = await user.getIdToken();
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch (error) {
+    console.error("Error attaching token:", error);
+  }
+  return config;
 });
 
 // ==========================================
@@ -40,8 +55,9 @@ export const getUserProfile = async (firebaseUid) => {
 // 2. Doctor Service
 // ==========================================
 export const getDoctors = async (specialization) => {
-  const url = specialization ? `/api/doctors?specialization=${specialization}` : '/api/doctors';
-  const response = await api.get(url);
+  const response = await api.get('/api/doctors', {
+    params: specialization ? { specialization } : {}
+  });
   return response.data;
 };
 
@@ -50,6 +66,19 @@ export const getDoctors = async (specialization) => {
 // ==========================================
 export const bookAppointment = async (bookingData) => {
   const response = await api.post('/api/appointments/book', bookingData);
+  return response.data;
+};
+
+export const rescheduleAppointment = async (appointmentId, appointmentDate, timeSlot) => {
+  const response = await api.patch(`/api/appointments/${appointmentId}/reschedule`, {
+    appointmentDate,
+    timeSlot
+  });
+  return response.data;
+};
+
+export const cancelAppointment = async (appointmentId) => {
+  const response = await api.patch(`/api/appointments/${appointmentId}/cancel`);
   return response.data;
 };
 

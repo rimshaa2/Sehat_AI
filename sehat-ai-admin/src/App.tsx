@@ -87,10 +87,7 @@ function App() {
               path="patients"
               element={<div className="p-8">Patient Records</div>}
             />
-            <Route
-              path="schedule"
-              element={<ScheduleManagement />}
-            />
+            <Route path="schedule" element={<ScheduleManagement />} />
           </Route>
 
           {/* --- ADMIN ROUTES --- */}

@@ -1,31 +1,47 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { DoctorSidebar } from "../../components/layout/DoctorSidebar";
 import { Menu, Bell, Search, User } from "lucide-react";
 
 export const DoctorLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] font-sans">
       {/* Sidebar Component */}
-      <DoctorSidebar isCollapsed={isCollapsed} />
+      <DoctorSidebar
+        isCollapsed={isCollapsed}
+        isMobileOpen={isMobileOpen}
+        onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
+        onMobileClose={() => setIsMobileOpen(false)}
+      />
 
       {/* Main Wrapper */}
       <div
         className={`flex-1 flex flex-col transition-all duration-300 ${
-          isCollapsed ? "ml-20" : "ml-72"
+          isCollapsed ? "lg:ml-[78px]" : "lg:ml-72"
         }`}
       >
         {/* Top Navigation Bar */}
-        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200/60 sticky top-0 z-10 px-8 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <header className="h-16 lg:h-20 bg-white/80 backdrop-blur-md border-b border-slate-200/60 sticky top-0 z-10 px-4 lg:px-8 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => setIsMobileOpen(true)}
+              className="lg:hidden p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-all"
+            >
+              <Menu size={22} />
+            </button>
+
+            {/* Desktop collapse toggle */}
             <button
               onClick={() => setIsCollapsed(!isCollapsed)}
-              className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-all"
+              className="hidden lg:flex p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-all"
             >
               <Menu size={20} />
             </button>
+
             <div className="relative hidden md:block">
               <Search
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -54,8 +70,8 @@ export const DoctorLayout = () => {
         </header>
 
         {/* Dynamic Content Area */}
-        <main className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-          <div className="max-w-400 mx-auto">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar">
+          <div className="max-w-[1600px] mx-auto">
             <Outlet />
           </div>
         </main>

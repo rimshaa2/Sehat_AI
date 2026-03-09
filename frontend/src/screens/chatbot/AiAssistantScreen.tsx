@@ -14,13 +14,13 @@ import {
   KeyboardAvoidingView,
   Keyboard,
   ActivityIndicator,
-  Alert
+  Alert,
 } from "react-native";
-import { 
-  ChevronLeft, 
-  Phone, 
-  Video, 
-  MoreHorizontal, 
+import {
+  ChevronLeft,
+  Phone,
+  Video,
+  MoreHorizontal,
   Mic,
   Plus,
   Send,
@@ -34,7 +34,10 @@ import { getAuth } from "@react-native-firebase/auth";
 import styles from "./styles/AiAssistantStyles";
 
 // Enable animations
-if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
@@ -46,7 +49,11 @@ const INTRO_MESSAGES = [
 ];
 
 const WELCOME_MESSAGES_EN = [
-  { id: 101, text: "Hello. 👋 I'm your health assistant. Ask me anything!", isUrdu: false },
+  {
+    id: 101,
+    text: "Hello. 👋 I'm your health assistant. Ask me anything!",
+    isUrdu: false,
+  },
   { id: 102, text: "What are you struggling with today?", isUrdu: false },
 ];
 
@@ -58,10 +65,13 @@ const WELCOME_MESSAGES_UR = [
 export default ({ navigation }: any) => {
   const [messages, setMessages] = useState<any[]>([]);
   const [isTyping, setIsTyping] = useState(false);
-  const [chatState, setChatState] = useState<'intro' | 'language_selection' | 'active_chat'>('intro');
+  const [chatState, setChatState] = useState<
+    "intro" | "language_selection" | "active_chat"
+  >("intro");
   const [inputText, setInputText] = useState("");
-  const [selectedLanguage, setSelectedLanguage] = useState('en-US'); // Default English
-  
+  const [selectedLanguage, setSelectedLanguage] = useState("en-US");
+  const [currentSound, setCurrentSound] = useState<Audio.Sound | null>(null);
+
   // 🎙️ Voice State
   const [recording, setRecording] = useState<Audio.Recording | undefined>();
   const [voiceProcessing, setVoiceProcessing] = useState(false);
@@ -110,14 +120,14 @@ export default ({ navigation }: any) => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setMessages((prev) => [...prev, msg]);
         scrollViewRef.current?.scrollToEnd({ animated: true });
-        
+
         if (msg.id !== INTRO_MESSAGES.length) {
-          setIsTyping(true); 
+          setIsTyping(true);
           await delay(1200);
         }
       }
       setIsTyping(false);
-      setChatState('language_selection');
+      setChatState("language_selection");
     };
 
     runIntro();
@@ -135,17 +145,18 @@ export default ({ navigation }: any) => {
   // 2. Handle Language Selection
   const handleLanguageSelect = async (lang: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setMessages([]); 
-    setChatState('active_chat');
-    
+    setMessages([]);
+    setChatState("active_chat");
+
     // Set technical language code for API
-    const langCode = lang === 'Urdu' ? 'ur-PK' : 'en-US';
+    const langCode = lang === "Urdu" ? "ur-PK" : "en-US";
     setSelectedLanguage(langCode);
 
     setIsTyping(true);
     await delay(800);
 
-    const welcomePack = lang === 'Urdu' ? WELCOME_MESSAGES_UR : WELCOME_MESSAGES_EN;
+    const welcomePack =
+      lang === "Urdu" ? WELCOME_MESSAGES_UR : WELCOME_MESSAGES_EN;
 
     for (const msg of welcomePack) {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
@@ -214,15 +225,18 @@ export default ({ navigation }: any) => {
   // ---------------------------------------------------------
   // 🎙️ VOICE LOGIC START
   // ---------------------------------------------------------
-  
+
   // A. Start Recording
   const startRecording = async () => {
     try {
       const permission = await Audio.requestPermissionsAsync();
-      if (permission.status === 'granted') {
-        await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      if (permission.status === "granted") {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+        });
         const { recording } = await Audio.Recording.createAsync(
-          Audio.RecordingOptionsPresets.HIGH_QUALITY
+          Audio.RecordingOptionsPresets.HIGH_QUALITY,
         );
         setRecording(recording);
         // Haptic feedback or visual cue could go here
@@ -230,7 +244,7 @@ export default ({ navigation }: any) => {
         Alert.alert("Permission Required", "Please allow microphone access.");
       }
     } catch (err) {
-      console.error('Failed to start recording', err);
+      console.error("Failed to start recording", err);
     }
   };
 
@@ -240,31 +254,39 @@ export default ({ navigation }: any) => {
 
     setRecording(undefined);
     await recording.stopAndUnloadAsync();
-    const uri = recording.getURI(); 
-    
+    const uri = recording.getURI();
+
     if (!uri) return;
 
     setVoiceProcessing(true);
-    
+
     try {
       // Call your API
-      const response = await sendVoiceMessage(uri, selectedLanguage, currentUserProfile);
+      const response = await sendVoiceMessage(
+        uri,
+        selectedLanguage,
+        currentUserProfile,
+      );
 
       if (response.success) {
         // 1. Show User Text (STT)
-        const userMsg = { id: Date.now(), text: response.user_text, isUser: true };
-        setMessages(prev => [...prev, userMsg]);
+        const userMsg = {
+          id: Date.now(),
+          text: response.user_text,
+          isUser: true,
+        };
+        setMessages((prev) => [...prev, userMsg]);
 
         setIsTyping(true);
         await delay(500); // Small natural delay
 
         // 2. Show AI Response (Text + Audio)
         setIsTyping(false);
-        const botMsg = { 
-          id: Date.now() + 1, 
-          text: response.ai_text, 
+        const botMsg = {
+          id: Date.now() + 1,
+          text: response.ai_text,
           isUser: false,
-          audioUrl: response.audio_url // Save audio URL for playback
+          audioUrl: response.audio_url, // Save audio URL for playback
         };
         setMessages(prev => [...prev, botMsg]);
         
@@ -350,51 +372,66 @@ export default ({ navigation }: any) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor="#66CDAA" barStyle="dark-content" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+          >
             <ChevronLeft color="#1C2A3A" size={28} />
           </TouchableOpacity>
           <View style={styles.headerAvatarContainer}>
             <View style={styles.headerAvatar}>
-               <Image 
-                 source={{ uri: "https://cdn-icons-png.flaticon.com/512/4712/4712035.png" }} 
-                 style={{ width: 40, height: 40 }} 
-               />
+              <Image
+                source={{
+                  uri: "https://cdn-icons-png.flaticon.com/512/4712/4712035.png",
+                }}
+                style={{ width: 40, height: 40 }}
+              />
             </View>
             <View style={styles.onlineBadge} />
           </View>
           <View style={styles.headerInfo}>
             <Text style={styles.headerTitle}>AI Health Assistant</Text>
             <Text style={styles.headerSubtitle}>
-              {voiceProcessing ? "Listening..." : isTyping ? "Typing..." : "@Official"}
+              {voiceProcessing
+                ? "Listening..."
+                : isTyping
+                  ? "Typing..."
+                  : "@Official"}
             </Text>
           </View>
         </View>
         <View style={styles.headerIcons}>
-          <TouchableOpacity><Phone color="#1C2A3A" size={24} /></TouchableOpacity>
+          <TouchableOpacity>
+            <Phone color="#1C2A3A" size={24} />
+          </TouchableOpacity>
         </View>
       </View>
 
       {/* Main Chat Area */}
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === "ios" ? "padding" : undefined} 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1 }}
       >
-        <ScrollView 
+        <ScrollView
           ref={scrollViewRef}
           style={styles.chatContainer}
           contentContainerStyle={styles.contentContainerStyle}
-          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+          onContentSizeChange={() =>
+            scrollViewRef.current?.scrollToEnd({ animated: true })
+          }
         >
           {/* Large Central Bot Avatar */}
           <View style={styles.largeBotContainer}>
             <View style={styles.largeBotCircle}>
               <View style={styles.innerBotCircle}>
-                <Image 
-                  source={{ uri: "https://cdn-icons-png.flaticon.com/512/4712/4712109.png" }} 
+                <Image
+                  source={{
+                    uri: "https://cdn-icons-png.flaticon.com/512/4712/4712109.png",
+                  }}
                   style={styles.botImage}
                   resizeMode="contain"
                 />
@@ -404,14 +441,22 @@ export default ({ navigation }: any) => {
 
           {/* Dynamic Messages */}
           {messages.map((msg) => (
-            <View 
-              key={msg.id} 
-              style={msg.isUser ? styles.userMessageWrapper : styles.messageWrapper}
+            <View
+              key={msg.id}
+              style={
+                msg.isUser ? styles.userMessageWrapper : styles.messageWrapper
+              }
             >
-              <Text style={msg.isUser ? styles.userMessageText : [styles.messageText, msg.isUrdu && styles.urduText]}>
+              <Text
+                style={
+                  msg.isUser
+                    ? styles.userMessageText
+                    : [styles.messageText, msg.isUrdu && styles.urduText]
+                }
+              >
                 {msg.text}
               </Text>
-              
+
               {/* Play Audio Button for Bot Messages */}
               {!msg.isUser && msg.audioUrl && (
                 <TouchableOpacity 
@@ -430,30 +475,30 @@ export default ({ navigation }: any) => {
 
           {/* Typing/Listening Indicator */}
           {(isTyping || voiceProcessing) && (
-             <View style={styles.typingContainer}>
-               {voiceProcessing ? (
-                 <ActivityIndicator size="small" color="#199A8E" />
-               ) : (
-                 <>
-                   <View style={[styles.dot, { backgroundColor: "#9CA3AF" }]} />
-                   <View style={[styles.dot, { backgroundColor: "#6B7280" }]} />
-                   <View style={[styles.dot, { backgroundColor: "#374151" }]} />
-                 </>
-               )}
-             </View>
+            <View style={styles.typingContainer}>
+              {voiceProcessing ? (
+                <ActivityIndicator size="small" color="#199A8E" />
+              ) : (
+                <>
+                  <View style={[styles.dot, { backgroundColor: "#9CA3AF" }]} />
+                  <View style={[styles.dot, { backgroundColor: "#6B7280" }]} />
+                  <View style={[styles.dot, { backgroundColor: "#374151" }]} />
+                </>
+              )}
+            </View>
           )}
         </ScrollView>
 
         {/* CONDITION 1: Show Language Buttons */}
-        {chatState === 'language_selection' && (
+        {chatState === "language_selection" && (
           <View style={styles.footer}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.languageButton}
               onPress={() => handleLanguageSelect("English")}
             >
               <Text style={styles.languageButtonText}>English</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.languageButton}
               onPress={() => handleLanguageSelect("Urdu")}
             >
@@ -463,13 +508,13 @@ export default ({ navigation }: any) => {
         )}
 
         {/* CONDITION 2: Show Input Bar */}
-        {chatState === 'active_chat' && (
+        {chatState === "active_chat" && (
           <View style={styles.inputContainer}>
             {/* 🔴 MODIFIED: MIC BUTTON LOGIC */}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[
-                styles.inputIcon, 
-                recording && { backgroundColor: '#ffebee', borderRadius: 20 }
+                styles.inputIcon,
+                recording && { backgroundColor: "#ffebee", borderRadius: 20 },
               ]}
               // Press and hold logic or Toggle logic
               onPress={recording ? stopRecording : startRecording}
@@ -480,8 +525,8 @@ export default ({ navigation }: any) => {
                 <Mic color="#199A8E" size={24} />
               )}
             </TouchableOpacity>
-            
-            <TextInput 
+
+            <TextInput
               style={styles.inputField}
               placeholder={recording ? "Recording..." : "Type or speak..."}
               placeholderTextColor="#9CA3AF"
