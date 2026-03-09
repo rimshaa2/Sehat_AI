@@ -13,7 +13,7 @@ import { ChevronLeft, Star, MapPin, Calendar, PenTool } from "lucide-react-nativ
 import { getAuth } from "@react-native-firebase/auth";
 
 // 🟢 IMPORT API SERVICES
-import api, { getUserProfile } from "../../services/api"; 
+import api, { getUserProfile } from "../../services/api";
 import styles from "./styles/PaymentScreenStyles";
 
 export default ({ navigation, route = { params: {} } }: any) => {
@@ -43,7 +43,7 @@ export default ({ navigation, route = { params: {} } }: any) => {
       // A. Get the MySQL User ID (We only have Firebase UID right now)
       // We need the integer ID (e.g. 1, 2) to link the Foreign Key in MySQL
       const userProfile = await getUserProfile(currentUser.uid);
-      
+
       if (!userProfile || !userProfile.id) {
         throw new Error("Could not find user profile in database.");
       }
@@ -96,14 +96,14 @@ export default ({ navigation, route = { params: {} } }: any) => {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Doctor Card */}
         <View style={styles.doctorCard}>
-          <Image 
-            source={{ uri: doctor?.image || 'https://via.placeholder.com/150' }} 
-            style={styles.doctorImage} 
+          <Image
+            source={{ uri: doctor?.image || 'https://via.placeholder.com/150' }}
+            style={styles.doctorImage}
           />
           <View style={styles.doctorInfo}>
             <Text style={styles.doctorName}>{doctor?.name || "Doctor Name"}</Text>
             <Text style={styles.specialty}>{doctor?.specialty || "Specialist"}</Text>
-            
+
             <View style={styles.ratingContainer}>
               <Star size={12} color="#199A8E" fill="#199A8E" />
               <Text style={styles.ratingText}>{doctor?.rating || 4.5}</Text>
@@ -148,7 +148,7 @@ export default ({ navigation, route = { params: {} } }: any) => {
 
         {/* Payment Detail */}
         <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>Payment Detail</Text>
-        
+
         <View style={styles.paymentRow}>
           <Text style={styles.paymentLabel}>Consultation</Text>
           <Text style={styles.paymentValue}>Rs. {consultationFee}</Text>
@@ -161,7 +161,7 @@ export default ({ navigation, route = { params: {} } }: any) => {
           <Text style={styles.paymentLabel}>Total</Text>
           <Text style={[styles.paymentValue, { color: '#199A8E', fontWeight: 'bold' }]}>Rs. {total}</Text>
         </View>
-        
+
         <View style={styles.divider} />
 
         {/* Payment Method (Visual Only) */}
@@ -181,8 +181,8 @@ export default ({ navigation, route = { params: {} } }: any) => {
           <Text style={styles.footerTotalLabel}>Total</Text>
           <Text style={styles.footerTotalPrice}>Rs. {total}</Text>
         </View>
-        <TouchableOpacity 
-          style={styles.confirmButton} 
+        <TouchableOpacity
+          style={styles.confirmButton}
           onPress={handleConfirmBooking}
           disabled={isLoading}
         >

@@ -25,6 +25,10 @@ Appointment.belongsTo(Doctor, { foreignKey: 'doctorId', as: 'doctor' });
 Doctor.hasMany(Availability, { foreignKey: 'doctorId', as: 'schedules' });
 Availability.belongsTo(Doctor, { foreignKey: 'doctorId', as: 'doctor' });
 
+// --- Medical Record Relationships ---
+User.hasMany(MedicalRecord, { foreignKey: 'userId', as: 'medicalRecords' });
+MedicalRecord.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
 // 3. Export
 const db = {
   sequelize,

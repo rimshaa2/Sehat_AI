@@ -21,7 +21,7 @@ import {
 } from "lucide-react-native";
 
 // 🟢 Import your API
-import api from "../../services/api"; 
+import api from "../../services/api";
 import styles from "./styles/DoctorDetailsStyles";
 import BookingSuccessScreen from "./BookingSuccessScreen";
 import PaymentScreen from "./PaymentScreen";
@@ -48,7 +48,7 @@ export default ({ navigation, route }: any) => {
   const { doctor } = route.params || {};
 
   const dates = generateDates();
-  
+
   // State
   const [selectedDate, setSelectedDate] = useState(dates[0].fullDate);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
@@ -65,7 +65,7 @@ export default ({ navigation, route }: any) => {
 
       try {
         console.log(`📅 Checking availability for Doctor ${doctor.id} on ${selectedDate}`);
-        
+
         // Call Backend: /api/appointments/doctors/1/slots?date=2026-01-21
         const response = await api.get(`/api/appointments/doctors/${doctor.id}/slots`, {
           params: { date: selectedDate }
@@ -212,40 +212,40 @@ export default ({ navigation, route }: any) => {
 
           {/* Time Selector (Dynamic Data) */}
           <View style={styles.sectionContainer}>
-             <Text style={styles.sectionTitle}>Available Slots</Text>
-             
-             {loadingSlots ? (
-               <ActivityIndicator size="small" color="#199A8E" style={{ marginTop: 20 }} />
-             ) : (
-               <View style={styles.timeGrid}>
-                 {availableSlots.length > 0 ? (
-                    availableSlots.map((time, index) => (
-                      <TouchableOpacity
-                        key={index}
+            <Text style={styles.sectionTitle}>Available Slots</Text>
+
+            {loadingSlots ? (
+              <ActivityIndicator size="small" color="#199A8E" style={{ marginTop: 20 }} />
+            ) : (
+              <View style={styles.timeGrid}>
+                {availableSlots.length > 0 ? (
+                  availableSlots.map((time, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={[
+                        styles.timeSlot,
+                        selectedTime === time && styles.timeSlotActive,
+                      ]}
+                      onPress={() => setSelectedTime(time)}
+                    >
+                      <Text
                         style={[
-                          styles.timeSlot,
-                          selectedTime === time && styles.timeSlotActive,
+                          styles.timeText,
+                          selectedTime === time && styles.textActive,
                         ]}
-                        onPress={() => setSelectedTime(time)}
                       >
-                        <Text
-                          style={[
-                            styles.timeText,
-                            selectedTime === time && styles.textActive,
-                          ]}
-                        >
-                          {time}
-                        </Text>
-                      </TouchableOpacity>
-                    ))
-                 ) : (
-                    // Empty State if no slots found from Backend
-                    <Text style={{ color: '#EF4444', fontStyle: 'italic', marginTop: 10 }}>
-                      No available slots for this date.
-                    </Text>
-                 )}
-               </View>
-             )}
+                        {time}
+                      </Text>
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  // Empty State if no slots found from Backend
+                  <Text style={{ color: '#EF4444', fontStyle: 'italic', marginTop: 10 }}>
+                    No available slots for this date.
+                  </Text>
+                )}
+              </View>
+            )}
           </View>
 
           {/* Reason Input Field */}
@@ -272,7 +272,7 @@ export default ({ navigation, route }: any) => {
 
         <TouchableOpacity
           style={[styles.bookButton, (!selectedTime || loadingSlots) && { opacity: 0.6 }]}
-          onPress={handleBookAppointment} 
+          onPress={handleBookAppointment}
           disabled={!selectedTime || loadingSlots}
         >
           <Text style={styles.bookButtonText}>

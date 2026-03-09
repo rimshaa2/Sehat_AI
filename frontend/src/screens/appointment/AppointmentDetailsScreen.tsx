@@ -27,8 +27,8 @@ export default ({ navigation, route }: any) => {
       "Are you sure you want to cancel this appointment? This action cannot be undone.",
       [
         { text: "No", style: "cancel" },
-        { 
-          text: "Yes, Cancel", 
+        {
+          text: "Yes, Cancel",
           style: "destructive",
           onPress: async () => {
             setLoading(true);
@@ -77,9 +77,9 @@ export default ({ navigation, route }: any) => {
 
         {/* Doctor Info */}
         <View style={styles.doctorCard}>
-          <Image 
-            source={{ uri: appointment.doctorImage || 'https://via.placeholder.com/150' }} 
-            style={styles.doctorImage} 
+          <Image
+            source={{ uri: appointment.doctorImage || 'https://via.placeholder.com/150' }}
+            style={styles.doctorImage}
           />
           <View style={styles.doctorInfo}>
             <Text style={styles.doctorName}>{appointment.doctorName}</Text>
@@ -89,12 +89,12 @@ export default ({ navigation, route }: any) => {
 
         {/* Details List */}
         <Text style={styles.sectionTitle}>Visit Information</Text>
-        
+
         <View style={styles.detailRow}>
           <Text style={styles.label}>Date</Text>
           <Text style={styles.value}>{appointment.date}</Text>
         </View>
-        
+
         <View style={styles.detailRow}>
           <Text style={styles.label}>Time</Text>
           <Text style={styles.value}>{appointment.time}</Text>

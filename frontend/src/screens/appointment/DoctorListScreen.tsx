@@ -14,7 +14,7 @@ import {
   TouchableWithoutFeedback,
 } from "react-native";
 import { ChevronLeft, Search, Star, ChevronDown, X } from "lucide-react-native";
-import { getDoctors } from "../../services/api"; 
+import { getDoctors } from "../../services/api";
 
 import styles from "./styles/DoctorListStyles";
 
@@ -51,15 +51,15 @@ export default ({ navigation, route }: any) => {
           name: doc.user?.fullName || "Unknown Doctor", // Join from User Table
           specialty: doc.specialization,
           image: doc.user?.profilePicture || null, // Join from User Table
-          
+
           // Price Formatting
-          price: `Rs. ${doc.consultationFee}`, 
+          price: `Rs. ${doc.consultationFee}`,
           priceValue: doc.consultationFee, // Keep raw number for sorting logic
-          
+
           // ⚠️ Mocks for fields not yet in DB (Randomized so you can test filters)
-          rating: (Math.random() * (5.0 - 3.5) + 3.5).toFixed(1), 
-          gender: Math.random() > 0.5 ? 'Male' : 'Female', 
-          isAvailable: true 
+          rating: (Math.random() * (5.0 - 3.5) + 3.5).toFixed(1),
+          gender: Math.random() > 0.5 ? 'Male' : 'Female',
+          isAvailable: true
         }));
 
         setAllDoctors(formattedList);
@@ -110,13 +110,13 @@ export default ({ navigation, route }: any) => {
   }, [allDoctors, searchQuery, availableToday, selectedGender, priceSort]);
 
   const renderDoctorItem = ({ item }: any) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.card}
       onPress={() => navigation.navigate("DoctorDetails", { doctor: item })}
     >
-      <Image 
-        source={{ uri: item.image || 'https://via.placeholder.com/150' }} 
-        style={styles.doctorImage} 
+      <Image
+        source={{ uri: item.image || 'https://via.placeholder.com/150' }}
+        style={styles.doctorImage}
       />
       <View style={styles.cardContent}>
         <Text style={styles.doctorName}>{item.name}</Text>
@@ -124,7 +124,7 @@ export default ({ navigation, route }: any) => {
         <Text style={styles.price}>{item.price}</Text>
       </View>
       <View style={styles.ratingContainer}>
-        <Star size={14} color="#F59E0B" fill="#F59E0B"/>
+        <Star size={14} color="#F59E0B" fill="#F59E0B" />
         <Text style={styles.ratingText}>{item.rating}</Text>
       </View>
     </TouchableOpacity>
@@ -158,19 +158,19 @@ export default ({ navigation, route }: any) => {
             </TouchableOpacity>
           )}
         </View>
-        
+
         {/* Filter Button (Visual only for now) */}
         <TouchableOpacity style={styles.filterBtnSquare}>
-           <View style={styles.filterLine1} />
-           <View style={styles.filterLine2} />
-           <View style={styles.filterLine3} />
+          <View style={styles.filterLine1} />
+          <View style={styles.filterLine2} />
+          <View style={styles.filterLine3} />
         </TouchableOpacity>
       </View>
 
       {/* Horizontal Filters Scroll */}
       <View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersScroll}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.filterPill, availableToday && styles.filterPillActive]}
             onPress={() => setAvailableToday(!availableToday)}
           >
@@ -178,7 +178,7 @@ export default ({ navigation, route }: any) => {
             {availableToday && <X size={14} color="#FFF" />}
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.filterPill, selectedGender && styles.filterPillActive]}
             onPress={() => setGenderModalVisible(true)}
           >
@@ -188,7 +188,7 @@ export default ({ navigation, route }: any) => {
             <ChevronDown size={14} color={selectedGender ? "#FFF" : "#6B7280"} />
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.filterPill, priceSort && styles.filterPillActive]}
             onPress={() => setPriceModalVisible(true)}
           >
@@ -231,8 +231,8 @@ export default ({ navigation, route }: any) => {
               <View style={styles.modalContent}>
                 <Text style={styles.modalHeader}>Select Gender</Text>
                 {['Male', 'Female'].map((g) => (
-                  <TouchableOpacity 
-                    key={g} 
+                  <TouchableOpacity
+                    key={g}
                     style={styles.modalOption}
                     onPress={() => { setSelectedGender(g); setGenderModalVisible(false); }}
                   >

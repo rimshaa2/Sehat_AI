@@ -17,33 +17,33 @@ export default ({ navigation, route }: any) => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#66CDAA" />
-      
+
       {/* White Sheet */}
       <View style={styles.contentSheet}>
-        
+
         {/* Floating Logo Badge */}
         <View style={styles.logoContainer}>
-           {/* Replace with your Sehat AI logo asset */}
-           <Image 
-             source={{ uri: "https://cdn-icons-png.flaticon.com/512/3004/3004458.png" }} 
-             style={styles.logoIcon}
-             resizeMode="contain"
-           />
+          {/* Replace with your Sehat AI logo asset */}
+          <Image
+            source={{ uri: "https://cdn-icons-png.flaticon.com/512/3004/3004458.png" }}
+            style={styles.logoIcon}
+            resizeMode="contain"
+          />
         </View>
 
         <Text style={styles.title}>
           You have successfully made an appointment
         </Text>
-        
+
         <Text style={styles.subtitle}>
           The appointment confirmation has been sent to your email.
         </Text>
 
         {/* Doctor Info */}
         <View style={styles.doctorContainer}>
-          <Image 
-            source={{ uri: doctor?.image || "https://via.placeholder.com/150" }} 
-            style={styles.doctorImage} 
+          <Image
+            source={{ uri: doctor?.image || "https://via.placeholder.com/150" }}
+            style={styles.doctorImage}
           />
           <Text style={styles.doctorName}>{doctor?.name || "Dr. Name"}</Text>
           <Text style={styles.specialty}>{doctor?.specialty || "Specialist"}</Text>
@@ -63,7 +63,7 @@ export default ({ navigation, route }: any) => {
         </View>
 
         {/* Back to Home Button */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.homeButton}
           onPress={() => navigation.reset({
             index: 0,
