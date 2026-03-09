@@ -25,10 +25,12 @@ import {
   Plus,
   Send,
   Square,
-  Volume2
+  Volume2,
+  Pause
 } from "lucide-react-native";
 import { Audio } from 'expo-av'; 
-import { sendVoiceMessage, saveMedicalRecord } from '../../services/api'; 
+import { sendVoiceMessage, saveMedicalRecord, sendTextMessage, getUserProfile } from '../../services/api'; 
+import { getAuth } from "@react-native-firebase/auth";
 import styles from "./styles/AiAssistantStyles";
 
 // Enable animations
@@ -64,18 +66,42 @@ export default ({ navigation }: any) => {
   const [recording, setRecording] = useState<Audio.Recording | undefined>();
   const [voiceProcessing, setVoiceProcessing] = useState(false);
 
+  // 🎵 Audio Playback State
+  const [playingSound, setPlayingSound] = useState<Audio.Sound | null>(null);
+  const [activeAudioUrl, setActiveAudioUrl] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+
   const scrollViewRef = useRef<ScrollView>(null);
   const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  // User State
+  const [dbUserId, setDbUserId] = useState<number | null>(null);
+
   const currentUserProfile = {
-    name: "Ali Khan", // Will be stripped by backend for privacy
+    name: "User", // Will be stripped by backend for privacy
     age: 55,
     gender: "Male",
-    conditions: "Hypertension, Diabetes Type 2",
-    allergies: "Penicillin"
+    conditions: "Hypertension",
+    allergies: "None"
   };
 
-  // 1. Initial Intro Sequence
+  // 1. Initial Intro Sequence & Fetch Profile
   useEffect(() => {
+    const fetchUserId = async () => {
+      const auth = getAuth();
+      if (auth.currentUser) {
+        try {
+          const profile = await getUserProfile(auth.currentUser.uid);
+          if (profile && profile.id) {
+            setDbUserId(profile.id);
+          }
+        } catch (e) {
+          console.error("Failed to fetch user profile for AI:", e);
+        }
+      }
+    };
+
+    fetchUserId();
+
     const runIntro = async () => {
       setIsTyping(true);
       await delay(1000);
@@ -96,6 +122,15 @@ export default ({ navigation }: any) => {
 
     runIntro();
   }, []);
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (playingSound) {
+        playingSound.unloadAsync();
+      }
+    };
+  }, [playingSound]);
 
   // 2. Handle Language Selection
   const handleLanguageSelect = async (lang: string) => {
@@ -126,15 +161,54 @@ export default ({ navigation }: any) => {
 
     const userMsg = { id: Date.now(), text: inputText, isUser: true };
     setMessages((prev) => [...prev, userMsg]);
+    
+    // Save input to safely send before clearing state
+    const textToSend = inputText;
     setInputText("");
     Keyboard.dismiss();
 
     setIsTyping(true);
-    // Here you would normally call your text-only API
-    await delay(2000);
-    const botMsg = { id: Date.now() + 1, text: "I understand. Can you tell me more?", isUser: false };
-    setIsTyping(false);
-    setMessages((prev) => [...prev, botMsg]);
+    
+    try {
+      // Call the newly created text-only API
+      const response = await sendTextMessage(textToSend, selectedLanguage, currentUserProfile);
+
+      if (response.success) {
+        setIsTyping(false);
+        const botMsg = { 
+          id: Date.now() + 1, 
+          text: response.ai_text, 
+          isUser: false,
+          audioUrl: response.audio_url // Includes optional audio for playback
+        };
+        setMessages((prev) => [...prev, botMsg]);
+
+        // Save to medical history
+        if (dbUserId) {
+          const recordData = {
+              userId: dbUserId, 
+              title: "Text Consultation",
+              doctor_name: "Sehat AI Assistant",
+              record_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+              record_type: "AI Consultation",
+              details: `User: ${response.user_text}\nAI: ${response.ai_text}`,
+              color_code: "#FEF9C3" // Yellow for notes
+          };
+
+          saveMedicalRecord(recordData)
+              .then(() => console.log("Text Record Saved to History"))
+              .catch(err => console.error("Save Error:", err));
+        } else {
+          console.warn("Skipping text save: dbUserId is null");
+        }
+      } else {
+        throw new Error(response.error || "Unknown Error");
+      }
+    } catch (error) {
+      console.error(error);
+      setIsTyping(false);
+      Alert.alert("Error", "Could not process text message.");
+    }
   };
 
   // ---------------------------------------------------------
@@ -193,19 +267,24 @@ export default ({ navigation }: any) => {
           audioUrl: response.audio_url // Save audio URL for playback
         };
         setMessages(prev => [...prev, botMsg]);
-        const recordData = {
-            user_id: 1, // 🔴 Hardcoded for now (use Auth ID later)
-            title: "Voice Consultation",
-            doctor_name: "Sehat AI Assistant",
-            record_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
-            record_type: "AI Consultation",
-            details: `User: ${response.user_text}\nAI: ${response.ai_text}`,
-            color_code: "#FEF9C3" // Yellow for notes
-        };
+        
+        if (dbUserId) {
+          const recordData = {
+              userId: dbUserId, 
+              title: "Voice Consultation",
+              doctor_name: "Sehat AI Assistant",
+              record_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+              record_type: "AI Consultation",
+              details: `User: ${response.user_text}\nAI: ${response.ai_text}`,
+              color_code: "#FEF9C3" // Yellow for notes
+          };
 
-        saveMedicalRecord(recordData)
-            .then(() => console.log("Record Saved to History"))
-            .catch(err => console.error("Save Error:", err));
+          saveMedicalRecord(recordData)
+              .then(() => console.log("Record Saved to History"))
+              .catch(err => console.error("Save Error:", err));
+        } else {
+          console.warn("Skipping voice save: dbUserId is null");
+        }
 
         // 3. Auto-play Response
         playSound(response.audio_url);
@@ -221,8 +300,44 @@ export default ({ navigation }: any) => {
   // C. Play Audio
   const playSound = async (url: string) => {
     try {
-      const { sound } = await Audio.Sound.createAsync({ uri: url });
-      await sound.playAsync();
+      // 1. If tapping the same audio that is currently loaded
+      if (activeAudioUrl === url && playingSound) {
+        if (isPlaying) {
+          await playingSound.pauseAsync();
+          setIsPlaying(false);
+        } else {
+          await playingSound.playAsync();
+          setIsPlaying(true);
+        }
+        return;
+      }
+
+      // 2. If a different audio is playing, stop and unload it
+      if (playingSound) {
+        await playingSound.unloadAsync();
+        setPlayingSound(null);
+        setIsPlaying(false);
+      }
+
+      // 3. Load and play new audio
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: url },
+        { shouldPlay: true },
+        (status) => {
+          if (status.isLoaded) {
+            setIsPlaying(status.isPlaying);
+            if (status.didJustFinish) {
+              setIsPlaying(false);
+              setActiveAudioUrl(null); // Reset when done
+            }
+          }
+        }
+      );
+      
+      setPlayingSound(sound);
+      setActiveAudioUrl(url);
+      setIsPlaying(true);
+
     } catch (error) {
       console.log("Audio Playback Error", error);
     }
@@ -301,9 +416,13 @@ export default ({ navigation }: any) => {
               {!msg.isUser && msg.audioUrl && (
                 <TouchableOpacity 
                   onPress={() => playSound(msg.audioUrl)} 
-                  style={{ marginTop: 5, alignSelf: 'flex-start' }}
+                  style={{ marginTop: 5, alignSelf: 'flex-start', padding: 4 }}
                 >
-                  <Volume2 size={18} color="#199A8E" />
+                  {activeAudioUrl === msg.audioUrl && isPlaying ? (
+                    <Pause size={18} color="#199A8E" />
+                  ) : (
+                    <Volume2 size={18} color="#199A8E" />
+                  )}
                 </TouchableOpacity>
               )}
             </View>

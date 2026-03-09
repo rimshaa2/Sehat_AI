@@ -131,4 +131,26 @@ export const sendVoiceMessage = async (uri, language = 'en-US', userProfile = {}
   }
 };
 
+export const sendTextMessage = async (text, language = 'en-US', userProfile = {}) => {
+  try {
+    const response = await fetch(`${PYTHON_URL}/text-chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text,
+        language,
+        userProfile,
+      }),
+    });
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Text Chat Error:", error);
+    throw error;
+  }
+};
+
 export default api;
