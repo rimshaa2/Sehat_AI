@@ -158,6 +158,32 @@ exports.getDashboardStats = async (req, res) => {
   }
 };
 
+// Get ALL appointments for the logged-in doctor (Calendar view)
+exports.getAllMyAppointments = async (req, res) => {
+  try {
+    const user = await User.findOne({ where: { firebase_uid: req.user.uid } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const doctorProfile = await Doctor.findOne({ where: { userId: user.id } });
+    if (!doctorProfile) return res.status(404).json({ error: "Doctor profile not found" });
+
+    const appointments = await Appointment.findAll({
+      where: { doctorId: doctorProfile.id },
+      include: [{
+        model: User,
+        as: 'patient',
+        attributes: ['fullName', 'phoneNumber', 'email']
+      }],
+      order: [['appointmentDate', 'ASC'], ['timeSlot', 'ASC']]
+    });
+
+    res.json(appointments);
+  } catch (error) {
+    console.error("Get all my appointments error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // 4. Search Doctors (Patient View)
 exports.getAllDoctors = async (req, res) => {
   try {

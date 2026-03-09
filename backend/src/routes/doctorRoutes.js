@@ -24,6 +24,9 @@ router.get('/admin/all', verifyToken, authorize(['admin']), doctorController.get
 // ── Profile ──
 router.put('/profile', verifyToken, doctorController.updateDoctorProfile);
 
+// ── My Appointments (Calendar) ──
+router.get('/my-appointments', verifyToken, doctorController.getAllMyAppointments);
+
 // ── Availability ──
 router.get('/availability', verifyToken, doctorController.getAvailability);
 router.put('/availability', verifyToken, doctorController.saveAvailability);
