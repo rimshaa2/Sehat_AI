@@ -134,6 +134,24 @@ exports.getAllAppointmentsAdmin = async (req, res) => {
   }
 };
 
+// 2.5 Update Appointment Status
+exports.updateAppointmentStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body; // e.g., 'completed', 'scheduled', 'cancelled', 'no-show'
+
+    const appt = await Appointment.findByPk(id);
+    if (!appt) return res.status(404).json({ error: "Appointment not found" });
+
+    appt.status = status;
+    await appt.save();
+
+    res.json({ success: true, message: `Appointment status updated to ${status}`, appointment: appt });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // 3. Cancel Appointment
 exports.cancelAppointment = async (req, res) => {
   try {
