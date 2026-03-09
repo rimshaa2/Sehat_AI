@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -12,6 +12,9 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { clsx } from "clsx";
+import { useAuth } from "../../context/AuthContext";
+import { auth } from "../../lib/firebase";
+import { signOut } from "firebase/auth";
 
 const doctorMenuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/doctor/dashboard" },
@@ -43,6 +46,16 @@ export const DoctorSidebar = ({
   onMobileClose,
 }: DoctorSidebarProps) => {
   const location = useLocation();
+  const { user } = useAuth();
+  const doctorName = user?.displayName || "Doctor";
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+      if (window.confirm("Are you sure you want to logout?")) {
+        await signOut(auth);
+        navigate("/login");
+      }
+    };
 
   const sidebarContent = (
     <aside
@@ -186,7 +199,7 @@ export const DoctorSidebar = ({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-slate-900 truncate">
-                  Dr. Sarah Ahmed
+                 {doctorName}
                 </p>
                 <p className="text-[10px] text-[#199A8E] font-semibold truncate">
                   Cardiologist
@@ -207,15 +220,14 @@ export const DoctorSidebar = ({
           )}
 
           <button
-            className={clsx(
-              "flex items-center gap-2 text-xs font-bold text-red-500 bg-red-50 hover:bg-red-500 hover:text-white rounded-xl transition-all duration-200 w-full",
-              isCollapsed ? "justify-center p-2.5" : "px-4 py-2.5 justify-center"
-            )}
+            onClick={() => handleLogout()}
+            className={`
+              flex items-center gap-3 text-red-600 hover:bg-red-50 rounded-xl transition-all
+              ${isCollapsed ? "justify-center p-3" : "px-4 py-3 w-full text-sm font-bold"}
+            `}
           >
-            <LogOut size={15} />
-            {!isCollapsed && (
-              <span className="animate-in fade-in duration-200">Sign Out</span>
-            )}
+            <LogOut size={20} />
+            {!isCollapsed && <span>Logout</span>}
           </button>
         </div>
       </div>

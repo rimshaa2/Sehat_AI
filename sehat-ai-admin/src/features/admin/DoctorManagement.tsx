@@ -217,67 +217,85 @@ export const DoctorsManagement = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {filteredDoctors.map((doc) => (
-              <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
-                <td className="p-4 pl-6">
-                  <div className="font-bold text-gray-900">
-                    {doc.user?.fullName}
-                  </div>
-                  <div className="text-xs text-gray-500">{doc.user?.email}</div>
-                </td>
-                <td className="p-4">
-                  <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs font-medium">
-                    {doc.specialization}
-                  </span>
-                </td>
-                <td className="p-4">
-                  <div className="text-sm font-mono">{doc.licenseNumber}</div>
-                  <div className="text-xs text-gray-500">
-                    {doc.experienceYears} Years Exp.
-                  </div>
-                </td>
-                <td className="p-4 text-sm text-gray-500">
-                  {new Date(doc.createdAt).toLocaleDateString()}
-                </td>
-                <td className="p-4">
-                  <span
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
-                      doc.verificationStatus === "verified"
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-orange-100 text-orange-700"
-                    }`}
-                  >
-                    {doc.verificationStatus.toUpperCase()}
-                  </span>
-                </td>
-                <td className="p-4 text-right pr-6">
-                  <div className="flex justify-end gap-2">
-                    {activeTab === "pending" && (
+            {filteredDoctors.length > 0 ? (
+              filteredDoctors.map((doc) => (
+                <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="p-4 pl-6">
+                    <div className="font-bold text-gray-900">
+                      {doc.user?.fullName}
+                    </div>
+                    <div className="text-xs text-gray-500">{doc.user?.email}</div>
+                  </td>
+                  <td className="p-4">
+                    <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs font-medium">
+                      {doc.specialization}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    <div className="text-sm font-mono">{doc.licenseNumber}</div>
+                    <div className="text-xs text-gray-500">
+                      {doc.experienceYears} Years Exp.
+                    </div>
+                  </td>
+                  <td className="p-4 text-sm text-gray-500">
+                    {new Date(doc.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="p-4">
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
+                        doc.verificationStatus === "verified"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-orange-100 text-orange-700"
+                      }`}
+                    >
+                      {doc.verificationStatus.toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="p-4 text-right pr-6">
+                    <div className="flex justify-end gap-2">
+                      {activeTab === "pending" && (
+                        <button
+                          onClick={() =>
+                            handleApprove(doc.id, doc.user?.fullName)
+                          }
+                          className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg"
+                        >
+                          <Check size={18} />
+                        </button>
+                      )}
                       <button
-                        onClick={() =>
-                          handleApprove(doc.id, doc.user?.fullName)
-                        }
-                        className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg"
+                        onClick={() => handleOpenEdit(doc)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
                       >
-                        <Check size={18} />
+                        <Edit3 size={18} />
                       </button>
-                    )}
-                    <button
-                      onClick={() => handleOpenEdit(doc)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                    >
-                      <Edit3 size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(doc.id, doc.user?.fullName)}
-                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                      <button
+                        onClick={() => handleDelete(doc.id, doc.user?.fullName)}
+                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={6} className="p-12 text-center">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <ShieldCheck className="h-10 w-10 text-gray-300" />
+                    <p className="text-base font-semibold text-gray-900 mt-2">
+                      No {activeTab} doctors found
+                    </p>
+                    <p className="text-sm text-gray-500 max-w-sm mx-auto">
+                      {activeTab === "pending" 
+                        ? "There are currently no new doctor applications waiting to be reviewed."
+                        : "No verified doctors match your search."}
+                    </p>
                   </div>
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>

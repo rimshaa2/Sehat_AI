@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { Toaster } from "react-hot-toast";
 
 // Pages
 import { LandingPage } from "./pages/LandingPage";
@@ -20,11 +21,14 @@ import { DoctorDashboard } from "./features/doctors/DoctorDashboard";
 import { DoctorLayout } from "./features/doctors/DoctorLayout";
 import { MyAppointments } from "./pages/appointments/MyAppointments";
 import { ScheduleManagement } from "./pages/schedule/ScheduleManagement";
+import { AdminSettings } from "./pages/settings/AdminSettings";
+import { DoctorProfile } from "./pages/profile/DoctorProfile";
 
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <Toaster position="top-right" />
         <Routes>
           {/* --- PUBLIC ROUTES --- */}
           <Route path="/" element={<LandingPage />} />
@@ -88,6 +92,7 @@ function App() {
               element={<div className="p-8">Patient Records</div>}
             />
             <Route path="schedule" element={<ScheduleManagement />} />
+            <Route path="profile" element={<DoctorProfile />} />
           </Route>
 
           {/* --- ADMIN ROUTES --- */}
@@ -103,7 +108,7 @@ function App() {
             <Route path="doctors" element={<DoctorsManagement />} />
             <Route path="appointments" element={<AppointmentsManagement />} />
             <Route path="patients" element={<div>Patient List Page</div>} />
-            <Route path="settings" element={<div>Settings Page</div>} />
+            <Route path="settings" element={<AdminSettings />} />
           </Route>
 
           {/* Catch-all */}

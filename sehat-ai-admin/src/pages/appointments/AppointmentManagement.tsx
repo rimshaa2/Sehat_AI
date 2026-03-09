@@ -7,21 +7,24 @@ import {
   Search,
   Filter,
   Download,
-  Plus,
   MapPin,
   Edit3,
   Trash2,
   Eye,
   RefreshCcw,
+  X,
 } from "lucide-react";
 import api from "../../lib/api";
 import { AppointmentModal } from "./AppointmentModal";
+import toast from "react-hot-toast";
 
 export const AppointmentsManagement = () => {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [viewedAppointment, setViewedAppointment] = useState<any>(null);
+  const [editingAppointment, setEditingAppointment] = useState<any>(null);
   const [stats, setStats] = useState({
     total: 0,
     today: 0,
@@ -35,12 +38,75 @@ export const AppointmentsManagement = () => {
   const handleCreateAppointment = async (data: any) => {
     try {
       await api.post("/appointments/admin/create", data);
-      alert("Appointment successfully booked!");
+      toast.success("Appointment successfully booked!");
       fetchAppointments(); // Refresh the table
       setIsModalOpen(false);
     } catch (error) {
-      alert("Error creating appointment. Please check IDs.");
+      toast.error("Error creating appointment. Please check IDs.");
     }
+  };
+
+  const handleDeleteAppointment = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this appointment?")) return;
+    try {
+      await api.delete(`/appointments/${id}`);
+      toast.success("Appointment deleted successfully!");
+      fetchAppointments();
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to delete appointment");
+    }
+  };
+
+  const submitEditAppointment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.patch(`/appointments/${editingAppointment.id}/reschedule`, {
+        appointmentDate: editingAppointment.rawDate || editingAppointment.date,
+        timeSlot: editingAppointment.time,
+      });
+      toast.success("Appointment rescheduled successfully!");
+      setEditingAppointment(null);
+      fetchAppointments();
+    } catch (error) {
+      toast.error("Failed to reschedule appointment");
+    }
+  };
+
+  const handleExport = () => {
+    if (appointments.length === 0) {
+      toast.error("No appointments to export.");
+      return;
+    }
+
+    const headers = ["Patient", "Phone", "Doctor", "Specialization", "Date", "Time", "Type", "Location", "Status"];
+    const csvContent = [
+      headers.join(","),
+      ...appointments.map((apt: any) =>
+        [
+          `"${apt.patientName || ""}"`,
+          `"${apt.patientPhone || ""}"`,
+          `"${apt.doctorName || ""}"`,
+          `"${apt.specialization || ""}"`,
+          `"${apt.date || ""}"`,
+          `"${apt.time || ""}"`,
+          `"${apt.type || ""}"`,
+          `"${apt.location || ""}"`,
+          `"${apt.status || ""}"`
+        ].join(",")
+      )
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `appointments_export_${new Date().toISOString().split("T")[0]}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Appointments exported successfully!");
   };
 
   const fetchAppointments = async () => {
@@ -216,14 +282,11 @@ export const AppointmentsManagement = () => {
             <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
               <Filter size={18} /> All Status
             </button>
-            <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
-              <Download size={18} /> Export
-            </button>
             <button
-              onClick={() => setIsModalOpen(true)}
-              className="flex-2 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-[#199A8E] text-white rounded-2xl text-sm font-bold hover:bg-[#15857a] shadow-lg shadow-emerald-100 transition-all active:scale-95"
+              onClick={handleExport}
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all"
             >
-              <Plus size={18} /> New Appointment
+              <Download size={18} /> Export
             </button>
           </div>
         </div>
@@ -308,13 +371,22 @@ export const AppointmentsManagement = () => {
                   </td>
                   <td className="p-6 text-right">
                     <div className="flex justify-end items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="p-2 text-slate-400 hover:text-[#199A8E] hover:bg-emerald-50 rounded-xl transition-all">
+                      <button
+                        onClick={() => setViewedAppointment(apt)}
+                        className="p-2 text-slate-400 hover:text-[#199A8E] hover:bg-emerald-50 rounded-xl transition-all"
+                      >
                         <Eye size={18} />
                       </button>
-                      <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all">
+                      <button
+                        onClick={() => setEditingAppointment(apt)}
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                      >
                         <Edit3 size={18} />
                       </button>
-                      <button className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all">
+                      <button
+                        onClick={() => handleDeleteAppointment(apt.id)}
+                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                      >
                         <Trash2 size={18} />
                       </button>
                     </div>
@@ -361,6 +433,62 @@ export const AppointmentsManagement = () => {
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleCreateAppointment}
       />
+
+      {/* View Modal */}
+      {viewedAppointment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-300">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100">
+              <h3 className="font-bold text-lg">Appointment Details</h3>
+              <button onClick={() => setViewedAppointment(null)} className="p-2 hover:bg-slate-100 rounded-full">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4 text-sm">
+              <div className="flex justify-between"><span className="text-slate-500 text-xs font-bold uppercase">Patient</span><span className="font-medium text-right">{viewedAppointment.patientName}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500 text-xs font-bold uppercase">Phone</span><span className="font-medium text-right">{viewedAppointment.patientPhone}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500 text-xs font-bold uppercase">Doctor</span><span className="font-medium text-right">{viewedAppointment.doctorName}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500 text-xs font-bold uppercase">Specialization</span><span className="font-medium text-right">{viewedAppointment.specialization}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500 text-xs font-bold uppercase">Date</span><span className="font-medium text-right">{viewedAppointment.date}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500 text-xs font-bold uppercase">Time</span><span className="font-medium text-right">{viewedAppointment.time}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500 text-xs font-bold uppercase">Type</span><span className="font-medium text-right">{viewedAppointment.type}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500 text-xs font-bold uppercase">Location</span><span className="font-medium text-right">{viewedAppointment.location}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500 text-xs font-bold uppercase">Status</span><span className="font-medium text-right">{viewedAppointment.status}</span></div>
+            </div>
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
+              <button onClick={() => setViewedAppointment(null)} className="px-6 py-2 bg-slate-200 hover:bg-slate-300 rounded-xl font-bold transition-all">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editingAppointment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-300">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100 bg-blue-50/50">
+              <h3 className="font-bold text-lg text-blue-900">Reschedule Appointment</h3>
+              <button onClick={() => setEditingAppointment(null)} className="p-2 hover:bg-blue-100 rounded-full text-blue-700">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={submitEditAppointment} className="p-6 space-y-4 text-sm">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-400 uppercase">New Date</label>
+                <input type="date" required value={editingAppointment.rawDate || ''} onChange={e => setEditingAppointment({...editingAppointment, rawDate: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-400 uppercase">New Time</label>
+                <input type="time" required value={editingAppointment.time || ''} onChange={e => setEditingAppointment({...editingAppointment, time: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+              </div>
+              <div className="pt-4 flex justify-end gap-3 border-t border-slate-100 mt-6">
+                <button type="button" onClick={() => setEditingAppointment(null)} className="px-6 py-2.5 text-slate-500 hover:bg-slate-100 rounded-xl font-bold transition-all">Cancel</button>
+                <button type="submit" className="px-6 py-2.5 bg-blue-600 text-white hover:bg-blue-700 rounded-xl font-bold transition-all shadow-lg shadow-blue-200">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
