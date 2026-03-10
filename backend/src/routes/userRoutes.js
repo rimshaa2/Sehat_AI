@@ -24,4 +24,7 @@ router.get('/appointment/:id',
 
 
 
+// PUT /api/users/:uid -> Update profile
+router.put('/:uid', userController.updateUserProfile);
+
 module.exports = router;

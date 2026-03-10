@@ -86,3 +86,24 @@ exports.getAllUsers = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// 4. Update User Profile
+exports.updateUserProfile = async (req, res) => {
+  const { uid } = req.params;
+  const { fullName, phoneNumber } = req.body;
+
+  try {
+    const user = await User.findOne({ where: { firebase_uid: uid } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    await user.update({
+      fullName: fullName || user.fullName,
+      phoneNumber: phoneNumber !== undefined ? phoneNumber : user.phoneNumber,
+    });
+
+    res.json({ success: true, user });
+  } catch (error) {
+    console.error("Update User Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
