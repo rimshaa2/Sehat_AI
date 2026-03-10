@@ -172,7 +172,7 @@ exports.getAllMyAppointments = async (req, res) => {
       include: [{
         model: User,
         as: 'patient',
-        attributes: ['fullName', 'phoneNumber', 'email']
+        attributes: ['id', 'fullName', 'phoneNumber', 'email']
       }],
       order: [['appointmentDate', 'ASC'], ['timeSlot', 'ASC']]
     });
