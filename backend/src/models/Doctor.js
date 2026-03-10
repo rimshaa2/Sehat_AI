@@ -17,6 +17,10 @@ const Doctor = sequelize.define('Doctor', {
     type: DataTypes.STRING,
     allowNull: false
   },
+  licenseNumber: {
+    type: DataTypes.STRING,
+    allowNull: true // True so that existing rows don't crash
+  },
   experienceYears: {
     type: DataTypes.INTEGER,
     defaultValue: 0

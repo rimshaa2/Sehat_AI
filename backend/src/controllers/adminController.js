@@ -104,7 +104,7 @@ exports.registerDoctor = async (req, res) => {
 
 exports.updateDoctor = async (req, res) => {
   const { doctorId } = req.params;
-  const { fullName, specialization, experienceYears, consultationFee, bio } =
+  const { fullName, specialization, experienceYears, consultationFee, bio, licenseNumber } =
     req.body;
 
   try {
@@ -114,8 +114,9 @@ exports.updateDoctor = async (req, res) => {
     // 1. Update Doctor Table fields
     await doctor.update({
       specialization: specialization || doctor.specialization,
-      experienceYears: experienceYears || doctor.experienceYears,
-      consultationFee: consultationFee || doctor.consultationFee,
+      experienceYears: experienceYears !== undefined ? experienceYears : doctor.experienceYears,
+      consultationFee: consultationFee !== undefined ? consultationFee : doctor.consultationFee,
+      licenseNumber: licenseNumber || doctor.licenseNumber,
       bio: bio || doctor.bio,
     });
 
