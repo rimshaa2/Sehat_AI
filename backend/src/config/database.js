@@ -77,11 +77,7 @@ const connectDB = async () => {
       await sequelize.authenticate();
       console.log('✅ MySQL Connected');
       
-      // Only sync in non-production or if flag is set
-      if (process.env.NODE_ENV !== 'production' || process.env.FORCE_SYNC === 'true') {
-        await sequelize.sync({ alter: true });
-        console.log('✅ SQL Models Synced');
-      }
+      // Sync is handled centrally in server startup to avoid duplicate ALTER runs.
     } catch (mysqlError) {
       errors.push(`MySQL: ${mysqlError.message}`);
       console.warn('⚠️ MySQL connection failed:', mysqlError.message);

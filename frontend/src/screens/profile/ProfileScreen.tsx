@@ -1,10 +1,11 @@
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  SafeAreaView,
 } from "react-native";
 import { 
   ChevronLeft, 
@@ -19,8 +20,9 @@ import {
 } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native"; // Import this!
 import { getAuth } from "@react-native-firebase/auth";
-import { getFirestore, doc, getDoc } from "@react-native-firebase/firestore";
 import styles from "./styles/ProfileScreenStyles";
+import BottomNavBar from "../../components/BottomNavBar";
+import { getUserProfile } from "../../services/api";
 
 export default ({ navigation }: any) => {
   const [userData, setUserData] = useState<any>(null);
@@ -28,41 +30,43 @@ export default ({ navigation }: any) => {
 
   // CHANGED: uses useFocusEffect instead of useEffect
   useFocusEffect(
-    useCallback(() => {
+    () => {
       const fetchProfile = async () => {
         // setLoading(true); // Optional: Uncomment if you want spinner on every revisit
         try {
           const auth = getAuth();
-          const db = getFirestore();
           const user = auth.currentUser;
 
           if (user) {
-            const docRef = doc(db, "users", user.uid);
-            const docSnap = await getDoc(docRef);
-            
-            if (docSnap.exists()) {
-              setUserData(docSnap.data());
-            } else {
-              setUserData({
-                fullName: user.displayName || "User",
-                email: user.email,
-                phone: "", 
-              });
-            }
+            const profile = await getUserProfile(user.uid);
+            setUserData(profile);
           }
         } catch (error) {
           console.error("Error fetching profile:", error);
+          const auth = getAuth();
+          const user = auth.currentUser;
+          setUserData({
+            fullName: user?.displayName || "User",
+            email: user?.email,
+            phoneNumber: "",
+          });
         } finally {
           setLoading(false);
         }
       };
 
       fetchProfile();
-    }, [])
+    }
   );
 
-  const MenuItem = ({ icon, title, subtitle, color = "#E0E7FF" }: any) => (
-    <TouchableOpacity style={styles.menuItem}>
+  const MenuItem = ({
+    icon,
+    title,
+    subtitle,
+    color = "#E0E7FF",
+    onPress,
+  }: any) => (
+    <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.85}>
       <View style={[styles.menuIconBox, { backgroundColor: color }]}>
         {icon}
       </View>
@@ -83,7 +87,7 @@ export default ({ navigation }: any) => {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.headerContainer}>
         <View style={styles.navRow}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -99,7 +103,9 @@ export default ({ navigation }: any) => {
           <View style={styles.userInfo}>
             <Text style={styles.userName}>{userData?.fullName || "Guest User"}</Text>
             <Text style={styles.userEmail}>{userData?.email}</Text>
-            <Text style={styles.userPhone}>{userData?.phone || "No phone added"}</Text>
+            <Text style={styles.userPhone}>
+              {userData?.phoneNumber || "No phone added"}
+            </Text>
           </View>
           
           {/* 👇 EDIT BUTTON LOGIC */}
@@ -181,6 +187,7 @@ export default ({ navigation }: any) => {
           color="#ECFDF5"
         />
       </ScrollView>
-    </View>
+      <BottomNavBar navigation={navigation} />
+    </SafeAreaView>
   );
 };

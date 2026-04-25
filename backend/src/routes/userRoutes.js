@@ -12,6 +12,7 @@ router.get('/all-users',
 
 // POST /api/users/sync -> Called after Login to save user to MySQL
 router.post('/sync', userController.syncUser);
+router.post('/login-attempt', userController.recordLoginAttempt);
 
 // GET /api/users/:uid -> Get full profile
 router.get('/:uid', userController.getUserProfile);

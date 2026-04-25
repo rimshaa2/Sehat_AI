@@ -12,15 +12,15 @@ import {
 } from "react-native";
 import { ChevronLeft } from "lucide-react-native";
 import { getAuth, updateProfile } from "@react-native-firebase/auth";
-import { getFirestore, doc, updateDoc } from "@react-native-firebase/firestore";
 import styles from "./styles/EditProfileStyles";
+import { updateUserProfile } from "../../services/api";
 
 export default ({ navigation, route }: any) => {
   // Get existing data passed from ProfileScreen
   const { userData } = route.params || {};
 
   const [fullName, setFullName] = useState(userData?.fullName || "");
-  const [phone, setPhone] = useState(userData?.phone || "");
+  const [phone, setPhone] = useState(userData?.phoneNumber || "");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSave = async () => {
@@ -35,7 +35,6 @@ export default ({ navigation, route }: any) => {
 
     try {
       const auth = getAuth();
-      const db = getFirestore();
       const user = auth.currentUser;
 
       if (user) {
@@ -44,11 +43,10 @@ export default ({ navigation, route }: any) => {
           displayName: fullName,
         });
 
-        // 2. Update Firestore User Document
-        const userRef = doc(db, "users", user.uid);
-        await updateDoc(userRef, {
+        // 2. Update backend profile (MySQL)
+        await updateUserProfile(user.uid, {
           fullName: fullName,
-          phone: phone,
+          phoneNumber: phone,
         });
 
         Alert.alert("Success", "Profile updated successfully!", [

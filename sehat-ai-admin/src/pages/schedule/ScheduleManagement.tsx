@@ -179,22 +179,15 @@ export const ScheduleManagement = () => {
             Manage your availability and working hours
           </p>
         </div>
-        <button
-          onClick={handleSave}
-          disabled={saving || loading}
-<<<<<<< HEAD
-          className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold shadow-lg transition-all active:scale-95 disabled:opacity-70 ${saveSuccess
-              ? "bg-emerald-500 text-white shadow-emerald-100"
-              : "bg-[#199A8E] text-white shadow-emerald-100 hover:bg-[#15857a]"
-            }`}
-=======
-          className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold shadow-lg transition-all active:scale-95 disabled:opacity-70 ${
-            saveSuccess
-              ? "bg-emerald-500 text-white shadow-emerald-100"
-              : "bg-[#199A8E] text-white shadow-emerald-100 hover:bg-[#15857a]"
-          }`}
->>>>>>> dev-rim
-        >
+<button
+  onClick={handleSave}
+  disabled={saving || loading}
+  className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold shadow-lg transition-all active:scale-95 disabled:opacity-70 ${
+    saveSuccess
+      ? "bg-emerald-500 text-white shadow-emerald-100"
+      : "bg-[#199A8E] text-white shadow-emerald-100 hover:bg-[#15857a]"
+  }`}
+>
           {saving ? (
             <>
               <Loader2 size={18} className="animate-spin" />
@@ -241,21 +234,14 @@ export const ScheduleManagement = () => {
               {DAYS.map((day) => {
                 const schedule = weeklySchedule[day];
                 return (
-                  <div
-                    key={day}
-<<<<<<< HEAD
-                    className={`group flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-4 rounded-2xl border transition-all duration-200 ${schedule.enabled
-                        ? "bg-white border-slate-200 hover:border-[#199A8E]/30 hover:shadow-sm"
-                        : "bg-slate-50/50 border-slate-100"
-                      }`}
-=======
-                    className={`group flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-4 rounded-2xl border transition-all duration-200 ${
-                      schedule.enabled
-                        ? "bg-white border-slate-200 hover:border-[#199A8E]/30 hover:shadow-sm"
-                        : "bg-slate-50/50 border-slate-100"
-                    }`}
->>>>>>> dev-rim
-                  >
+<div
+  key={day}
+  className={`group flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-4 rounded-2xl border transition-all duration-200 ${
+    schedule.enabled
+      ? "bg-white border-slate-200 hover:border-[#199A8E]/30 hover:shadow-sm"
+      : "bg-slate-50/50 border-slate-100"
+  }`}
+>
                     {/* Toggle + Day Name */}
                     <div className="flex items-center gap-3 min-w-[160px]">
                       <button
@@ -275,20 +261,13 @@ export const ScheduleManagement = () => {
                           />
                         )}
                       </button>
-                      <span
-<<<<<<< HEAD
-                        className={`text-sm font-bold ${schedule.enabled
-                            ? "text-slate-900"
-                            : "text-slate-400"
-                          }`}
-=======
-                        className={`text-sm font-bold ${
-                          schedule.enabled
-                            ? "text-slate-900"
-                            : "text-slate-400"
-                        }`}
->>>>>>> dev-rim
-                      >
+<span
+  className={`text-sm font-bold ${
+    schedule.enabled
+      ? "text-slate-900"
+      : "text-slate-400"
+  }`}
+>
                         {day}
                       </span>
                     </div>
@@ -469,20 +448,13 @@ export const ScheduleManagement = () => {
                   {["15", "30", "45"].map((val) => (
                     <button
                       key={val}
-                      onClick={() => setAppointmentDuration(val)}
-<<<<<<< HEAD
-                      className={`py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${appointmentDuration === val
-                          ? "bg-[#199A8E] text-white shadow-md shadow-[#199A8E]/20"
-                          : "bg-slate-50 text-slate-600 border border-slate-200 hover:border-[#199A8E]/30"
-                        }`}
-=======
-                      className={`py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
-                        appointmentDuration === val
-                          ? "bg-[#199A8E] text-white shadow-md shadow-[#199A8E]/20"
-                          : "bg-slate-50 text-slate-600 border border-slate-200 hover:border-[#199A8E]/30"
-                      }`}
->>>>>>> dev-rim
-                    >
+  onClick={() => setAppointmentDuration(val)}
+  className={`py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
+    appointmentDuration === val
+      ? "bg-[#199A8E] text-white shadow-md shadow-[#199A8E]/20"
+      : "bg-slate-50 text-slate-600 border border-slate-200 hover:border-[#199A8E]/30"
+  }`}
+>
                       {val} min
                     </button>
                   ))}
@@ -503,20 +475,13 @@ export const ScheduleManagement = () => {
                   {["0", "5", "10", "15"].map((val) => (
                     <button
                       key={val}
-                      onClick={() => setBufferTime(val)}
-<<<<<<< HEAD
-                      className={`py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${bufferTime === val
-                          ? "bg-[#199A8E] text-white shadow-md shadow-[#199A8E]/20"
-                          : "bg-slate-50 text-slate-600 border border-slate-200 hover:border-[#199A8E]/30"
-                        }`}
-=======
-                      className={`py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
-                        bufferTime === val
-                          ? "bg-[#199A8E] text-white shadow-md shadow-[#199A8E]/20"
-                          : "bg-slate-50 text-slate-600 border border-slate-200 hover:border-[#199A8E]/30"
-                      }`}
->>>>>>> dev-rim
-                    >
+  onClick={() => setBufferTime(val)}
+  className={`py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
+    bufferTime === val
+      ? "bg-[#199A8E] text-white shadow-md shadow-[#199A8E]/20"
+      : "bg-slate-50 text-slate-600 border border-slate-200 hover:border-[#199A8E]/30"
+  }`}
+>
                       {val}m
                     </button>
                   ))}
@@ -597,24 +562,16 @@ export const ScheduleManagement = () => {
                   color: "text-red-500",
                 },
                 {
-                  label: "Slots / Day",
-                  value:
-                    appointmentDuration !== "0"
-                      ? Math.floor(
-<<<<<<< HEAD
-                        (totalHours / activeDays || 0) *
-                        (60 /
-                          (parseInt(appointmentDuration) +
-                            parseInt(bufferTime)))
-                      ).toString()
-=======
-                          (totalHours / activeDays || 0) *
-                            (60 /
-                              (parseInt(appointmentDuration) +
-                                parseInt(bufferTime)))
-                        ).toString()
->>>>>>> dev-rim
-                      : "0",
+label: "Slots / Day",
+value:
+  appointmentDuration !== "0"
+    ? Math.floor(
+        (totalHours / activeDays || 0) *
+          (60 /
+            (parseInt(appointmentDuration) +
+              parseInt(bufferTime)))
+      ).toString()
+    : "0",
                   color: "text-amber-600",
                 },
               ].map((stat) => (
@@ -635,22 +592,15 @@ export const ScheduleManagement = () => {
               <div className="pt-2">
                 <div className="flex gap-1">
                   {DAYS.map((day) => (
-                    <div
-                      key={day}
-<<<<<<< HEAD
-                      className={`h-2 flex-1 rounded-full transition-colors ${weeklySchedule[day].enabled
-                          ? "bg-[#199A8E]"
-                          : "bg-slate-200"
-                        }`}
-=======
-                      className={`h-2 flex-1 rounded-full transition-colors ${
-                        weeklySchedule[day].enabled
-                          ? "bg-[#199A8E]"
-                          : "bg-slate-200"
-                      }`}
->>>>>>> dev-rim
-                      title={day}
-                    />
+<div
+  key={day}
+  className={`h-2 flex-1 rounded-full transition-colors ${
+    weeklySchedule[day].enabled
+      ? "bg-[#199A8E]"
+      : "bg-slate-200"
+  }`}
+  title={day}
+/>
                   ))}
                 </div>
                 <div className="flex justify-between mt-1">
@@ -688,8 +638,6 @@ export const ScheduleManagement = () => {
       </div>
     </div>
   );
-<<<<<<< HEAD
+
 };
-=======
-};
->>>>>>> dev-rim
+

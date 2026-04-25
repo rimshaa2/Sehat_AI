@@ -1,5 +1,10 @@
 const { User, Doctor } = require('../models');
 const admin = require('../config/firebase');
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_MINUTES = 10;
+
+const isUserLocked = (user) =>
+  Boolean(user?.lockedUntil && new Date(user.lockedUntil).getTime() > Date.now());
 
 // 1. Sync User (The "Hybrid" Auth Logic)
 // Reference: SDS Table 18 - Hybrid Authentication & Profile Sync
@@ -7,7 +12,6 @@ exports.syncUser = async (req, res) => {
   const { idToken } = req.body;
 
   try {
-    // 1. Verify Token
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const { uid, email, name, picture, phone_number } = decodedToken;
 
@@ -50,12 +54,72 @@ exports.syncUser = async (req, res) => {
       }
     }
 
+    if (isUserLocked(user)) {
+      return res.status(423).json({
+        error: "Account temporarily locked due to failed login attempts.",
+        lockedUntil: user.lockedUntil,
+      });
+    }
+
     // 5. Return the User (Success)
     res.status(200).json({ success: true, user });
 
   } catch (error) {
     console.error('Auth Sync Error:', error);
     res.status(401).json({ error: 'Invalid Token or Database Error', details: error.message });
+  }
+};
+
+// Track login attempts server-side to enforce lockout across devices.
+exports.recordLoginAttempt = async (req, res) => {
+  const { email, success } = req.body;
+  if (!email || typeof success !== "boolean") {
+    return res.status(400).json({ error: "email and success are required." });
+  }
+
+  try {
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      return res.status(200).json({ success: true, message: "No account found." });
+    }
+
+    if (success) {
+      await user.update({ failedLoginAttempts: 0, lockedUntil: null });
+      return res.status(200).json({ success: true, message: "Login counters reset." });
+    }
+
+    if (isUserLocked(user)) {
+      return res.status(423).json({
+        error: "Account is currently locked.",
+        lockedUntil: user.lockedUntil,
+      });
+    }
+
+    const nextFailed = (user.failedLoginAttempts || 0) + 1;
+    const updatePayload = { failedLoginAttempts: nextFailed };
+
+    if (nextFailed >= MAX_FAILED_ATTEMPTS) {
+      updatePayload.lockedUntil = new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000);
+      updatePayload.failedLoginAttempts = 0;
+    }
+
+    await user.update(updatePayload);
+
+    if (updatePayload.lockedUntil) {
+      return res.status(423).json({
+        error: "Too many failed attempts. Account temporarily locked.",
+        lockedUntil: updatePayload.lockedUntil,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      failedLoginAttempts: nextFailed,
+      attemptsRemaining: Math.max(0, MAX_FAILED_ATTEMPTS - nextFailed),
+    });
+  } catch (error) {
+    console.error("Record login attempt error:", error);
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -90,7 +154,7 @@ exports.getAllUsers = async (req, res) => {
 // 4. Update User Profile
 exports.updateUserProfile = async (req, res) => {
   const { uid } = req.params;
-  const { fullName, phoneNumber } = req.body;
+  const { fullName, phoneNumber, notificationsEnabled, preferredLanguage } = req.body;
 
   try {
     const user = await User.findOne({ where: { firebase_uid: uid } });
@@ -99,6 +163,12 @@ exports.updateUserProfile = async (req, res) => {
     await user.update({
       fullName: fullName || user.fullName,
       phoneNumber: phoneNumber !== undefined ? phoneNumber : user.phoneNumber,
+      notificationsEnabled:
+        notificationsEnabled !== undefined
+          ? Boolean(notificationsEnabled)
+          : user.notificationsEnabled,
+      preferredLanguage:
+        preferredLanguage !== undefined ? preferredLanguage : user.preferredLanguage,
     });
 
     res.json({ success: true, user });

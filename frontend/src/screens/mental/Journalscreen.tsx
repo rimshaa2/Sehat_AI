@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { createWellnessEntry, getWellnessEntries } from "../../services/api";
 
 const MOODS = [
   { emoji: "😊", label: "Happy" },
@@ -18,7 +19,7 @@ const MOODS = [
   { emoji: "😰", label: "Anxious" },
 ];
 
-const RECENT_ENTRIES = [
+const DEFAULT_RECENT_ENTRIES = [
   { date: "Oct 8", emoji: "😊", preview: "Had a wonderful day with family..." },
   { date: "Oct 7", emoji: "😌", preview: "Meditation helped me feel centered..." },
   { date: "Oct 6", emoji: "😐", preview: "Regular day, nothing special..." },
@@ -27,12 +28,58 @@ const RECENT_ENTRIES = [
 function JournalScreen({ navigation }: { navigation: any }) {
   const [selectedMood, setSelectedMood] = useState<number | null>(null);
   const [journalText, setJournalText] = useState("");
+  const [recentEntries, setRecentEntries] = useState(DEFAULT_RECENT_ENTRIES);
 
   const today = new Date().toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",
   });
+
+  useEffect(() => {
+    const loadEntries = async () => {
+      try {
+        const entries = await getWellnessEntries("journal", 30);
+        if (!Array.isArray(entries)) return;
+        const mapped = entries
+          .map((entry: any) => ({
+            date: new Date(entry.createdAt).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            }),
+            emoji: entry.payload?.emoji || "📝",
+            preview: entry.payload?.text || "",
+          }))
+          .filter((e: any) => e.preview)
+          .slice(0, 10);
+        if (mapped.length > 0) setRecentEntries(mapped);
+      } catch (error) {
+        console.warn("Journal load failed:", error);
+      }
+    };
+    loadEntries();
+  }, []);
+
+  const handleSaveEntry = async () => {
+    if (!journalText.trim()) return;
+    const payload = {
+      moodIndex: selectedMood,
+      emoji: selectedMood !== null ? MOODS[selectedMood]?.emoji : "📝",
+      text: journalText.trim(),
+    };
+    try {
+      await createWellnessEntry("journal", payload);
+      const added = {
+        date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        emoji: payload.emoji,
+        preview: payload.text,
+      };
+      setRecentEntries((prev) => [added, ...prev].slice(0, 10));
+      setJournalText("");
+    } catch (error) {
+      console.warn("Journal save failed:", error);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -80,14 +127,14 @@ function JournalScreen({ navigation }: { navigation: any }) {
             textAlignVertical="top"
           />
 
-          <TouchableOpacity style={styles.saveEntryButton}>
+          <TouchableOpacity style={styles.saveEntryButton} onPress={handleSaveEntry}>
             <Text style={styles.saveEntryText}>Save Entry</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.card}>
           <Text style={styles.recentTitle}>Recent Entries</Text>
-          {RECENT_ENTRIES.map((entry, i) => (
+          {recentEntries.map((entry, i) => (
             <View key={i} style={styles.entryCard}>
               <Text style={styles.entryEmoji}>{entry.emoji}</Text>
               <View style={styles.entryInfo}>

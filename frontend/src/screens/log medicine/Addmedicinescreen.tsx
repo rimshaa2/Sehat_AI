@@ -1,6 +1,6 @@
 // ─── src/screens/log medicine/AddMedicineScreen.tsx ─────────────────────────
 
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -54,7 +54,7 @@ const FocusInput: React.FC<React.ComponentProps<typeof TextInput>> = (props) => 
 // ── Screen ────────────────────────────────────────────────────────────────────
 export default function AddMedicineScreen({ navigation, route }: Props): React.JSX.Element {
   const { editMed } = route.params ?? {};
-  const { addMedicine, updateMedicine } = useMedicines();
+  const { addMedicine, updateMedicine, refetch } = useMedicines();
   const isEdit = !!editMed;
 
   const [step,     setStep]     = useState<1 | 2 | 3>(1);
@@ -77,18 +77,16 @@ export default function AddMedicineScreen({ navigation, route }: Props): React.J
   const removeTime = (i: number): void => setTimes(p => p.filter((_, idx) => idx !== i));
   const updateTime = (i: number, v: string): void => setTimes(p => p.map((t, idx) => idx === i ? v : t));
 
-  const handleSave = (): void => {
+  const handleSave = async (): Promise<void> => {
     const payload: Omit<Medicine, "id" | "taken" | "notifIds"> = {
       name, dose, unit, freq, color, note,
       stock:        parseInt(stock,    10) || 30,
       durationDays: parseInt(duration, 10) || 30,
       times,
     };
-    if (isEdit && editMed) {
-      updateMedicine({ ...editMed, ...payload });
-    } else {
-      addMedicine(payload);
-    }
+    if (isEdit && editMed) await updateMedicine({ ...editMed, ...payload });
+    else await addMedicine(payload);
+    await refetch().catch(() => {});
     navigation.goBack();
   };
 

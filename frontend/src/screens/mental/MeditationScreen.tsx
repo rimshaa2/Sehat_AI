@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
+import { createWellnessEntry } from "../../services/api";
 
 type AudioType = "nature" | "guided" | "ambient";
 
@@ -196,6 +197,11 @@ function MeditationScreen({ navigation }: { navigation: any }) {
           return prev + 1;
         });
       }, 1000);
+      createWellnessEntry("meditation_session", {
+        title: SESSIONS[index].title,
+        duration: SESSIONS[index].duration,
+        audioType,
+      }).catch((error) => console.warn("Meditation log failed:", error));
     } catch (e) {
       console.warn("Audio load error:", e);
     } finally {

@@ -3,31 +3,37 @@ const router = express.Router();
 const appointmentController = require("../controllers/appointmentController");
 const { verifyToken, authorize } = require("../middleware/authMiddleware");
 
-// POST /api/appointments/book -> Book a slot
-router.post("/book", appointmentController.bookAppointment);
+// ── Specific routes FIRST (before /:id wildcards) ──────────────────────────
 
-// GET /api/appointments -> Get history (expects ?userId=1&role=patient)
-router.get("/", appointmentController.getMyAppointments);
-router.get(
-  "/admin/all",
-  verifyToken,
-  authorize(["admin"]),
-  appointmentController.getAllAppointmentsAdmin,
-);
-
-// PATCH /api/appointments/:id/status -> Update status (completed, no-show, etc)
-router.patch("/:id/status", appointmentController.updateAppointmentStatus);
-
-// PATCH /api/appointments/:id/cancel -> Cancel
-router.patch("/:id/cancel", appointmentController.cancelAppointment);
-
-// PATCH /api/appointments/:id/reschedule -> Reschedule
-router.patch("/:id/reschedule", appointmentController.rescheduleAppointment);
-
+// GET /api/appointments/doctors -> Get doctor list
 router.get("/doctors", appointmentController.getDoctors);
+
+// GET /api/appointments/doctors/:doctorId/slots?date=YYYY-MM-DD
 router.get("/doctors/:doctorId/slots", appointmentController.getDoctorSlots);
 
-// DELETE /api/appointments/:id -> Delete
+// GET /api/appointments/admin/all
+router.get("/admin/all", verifyToken, authorize(["admin"]), appointmentController.getAllAppointmentsAdmin);
+
+// GET /api/appointments -> Get history (?userId=1&role=patient)
+router.get("/", appointmentController.getMyAppointments);
+
+// POST /api/appointments/book
+router.post("/book", appointmentController.bookAppointment);
+
+// ── Wildcard /:id routes LAST ───────────────────────────────────────────────
+router.patch("/:id/status", appointmentController.updateAppointmentStatus);
+
+
+router.patch("/:id/cancel", appointmentController.cancelAppointment);
+
+
+router.patch("/:id/reschedule", appointmentController.rescheduleAppointment);
+
+
+
+
+
+
 router.delete("/:id", appointmentController.deleteAppointment);
 
 module.exports = router;

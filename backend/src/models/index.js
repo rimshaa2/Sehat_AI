@@ -6,6 +6,9 @@ const Doctor = require('./Doctor');
 const Appointment = require('./Appointment');
 const Availability = require('./Availability'); 
 const MedicalRecord = require('./MedicalRecord');
+const CommunityPost = require("./CommunityPost");
+const MedicineLog = require("./MedicineLog");
+const WellnessEntry = require("./WellnessEntry");
 
 // 2. Define Relationships
 
@@ -29,6 +32,14 @@ Availability.belongsTo(Doctor, { foreignKey: 'doctorId', as: 'doctor' });
 User.hasMany(MedicalRecord, { foreignKey: 'userId', as: 'medicalRecords' });
 MedicalRecord.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
+// --- Community Relationships ---
+User.hasMany(CommunityPost, { foreignKey: "userId", as: "communityPosts" });
+CommunityPost.belongsTo(User, { foreignKey: "userId", as: "user" });
+User.hasMany(MedicineLog, { foreignKey: "userId", as: "medicines" });
+MedicineLog.belongsTo(User, { foreignKey: "userId", as: "user" });
+User.hasMany(WellnessEntry, { foreignKey: "userId", as: "wellnessEntries" });
+WellnessEntry.belongsTo(User, { foreignKey: "userId", as: "user" });
+
 // 3. Export
 const db = {
   sequelize,
@@ -36,7 +47,10 @@ const db = {
   Doctor,
   Appointment,
   Availability ,
-  MedicalRecord
+  MedicalRecord,
+  CommunityPost,
+  MedicineLog,
+  WellnessEntry,
 };
 
 module.exports = db;

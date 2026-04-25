@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.rimshahaha.SehatAI",
-      "googleServicesFile": "./GoogleService-Info.plist", 
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -25,7 +25,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.rimshahaha.SehatAI", 
+      "package": "com.rimshahaha.SehatAI",
       "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
@@ -37,13 +37,18 @@
       "expo-build-properties",
       "@react-native-firebase/app",
       "@react-native-firebase/auth"
-      
     ],
     "extra": {
       "eas": {
         "projectId": "bde0e5b0-6f3c-41b5-9cca-a9cb1d97844b"
       }
     },
-    "owner": "rimshahaha"
+    "owner": "rimshahaha",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/bde0e5b0-6f3c-41b5-9cca-a9cb1d97844b"
+    }
   }
 }

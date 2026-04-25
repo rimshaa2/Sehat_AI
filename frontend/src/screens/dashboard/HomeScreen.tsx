@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import {
   SafeAreaView,
   View,
@@ -16,26 +16,73 @@ import {
   Calendar,
   Clock,
   MessageCircle,
-  Home,
   User as UserIcon,
-  CalendarDays
 } from "lucide-react-native";
 
 // 🟢 IMPORT API SERVICES (This replaces Firestore)
 import { getUserProfile, getMyAppointments } from "../../services/api";
 
 import styles from "./styles/HomeScreenStyles";
+import BottomNavBar from "../../components/BottomNavBar";
+
+const SEARCH_TO_SPECIALTY: Record<string, string> = {
+  heart: "Cardiology",
+  chest: "Cardiology",
+  cardiology: "Cardiology",
+  skin: "Dermatology",
+  rash: "Dermatology",
+  acne: "Dermatology",
+  derm: "Dermatology",
+  child: "Pediatrics",
+  baby: "Pediatrics",
+  pediatric: "Pediatrics",
+  gynae: "Gynecology",
+  gyne: "Gynecology",
+  pregnancy: "Gynecology",
+  women: "Gynecology",
+  bone: "Orthopedics",
+  joint: "Orthopedics",
+  fracture: "Orthopedics",
+  ortho: "Orthopedics",
+  eye: "Ophthalmology",
+  vision: "Ophthalmology",
+  ent: "Ear, Nose & Throat",
+  ear: "Ear, Nose & Throat",
+  nose: "Ear, Nose & Throat",
+  throat: "Ear, Nose & Throat",
+  mental: "Mental wellness",
+  anxiety: "Mental wellness",
+  depression: "Mental wellness",
+  stress: "Mental wellness",
+  diabetes: "Endocrinology",
+  thyroid: "Endocrinology",
+};
 
 export default ({ navigation }: any) => {
   const [userName, setUserName] = useState("User");
   const [nextAppointment, setNextAppointment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const auth = getAuth();
 
+  const resolveSpecialtyFromQuery = (query: string) => {
+    const normalized = query.toLowerCase().trim();
+    if (!normalized) return "All Doctors";
+    const matchedKey = Object.keys(SEARCH_TO_SPECIALTY).find((key) =>
+      normalized.includes(key),
+    );
+    return matchedKey ? SEARCH_TO_SPECIALTY[matchedKey] : "All Doctors";
+  };
+
+  const handleSearch = () => {
+    const resolvedSpecialty = resolveSpecialtyFromQuery(searchQuery);
+    navigation.navigate("DoctorList", { specialty: resolvedSpecialty });
+  };
+
   // 1. Fetch User Data & Appointments (Runs on Focus)
   useFocusEffect(
-    useCallback(() => {
+    () => {
       let isActive = true; // Cleanup flag to prevent state updates if screen unmounts
 
       const fetchData = async () => {
@@ -81,7 +128,7 @@ export default ({ navigation }: any) => {
       fetchData();
 
       return () => { isActive = false; };
-    }, [])
+    }
   );
 
   // Helper Component for Grid Items
@@ -125,8 +172,12 @@ export default ({ navigation }: any) => {
             placeholder="symptoms, diseases..."
             style={styles.searchInput}
             placeholderTextColor="#A1A8B0"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
+            onSubmitEditing={handleSearch}
           />
-          <TouchableOpacity style={styles.filterButton}>
+          <TouchableOpacity style={styles.filterButton} onPress={handleSearch}>
             <View style={styles.filterLine1} />
             <View style={styles.filterLine2} />
             <View style={styles.filterLine3} />
@@ -151,7 +202,14 @@ export default ({ navigation }: any) => {
                   <Text style={styles.doctorName}>{nextAppointment.doctorName}</Text>
                   <Text style={styles.doctorSpeciality}>{nextAppointment.doctorSpecialty}</Text>
                 </View>
-                <TouchableOpacity style={styles.chatButton}>
+                <TouchableOpacity
+                  style={styles.chatButton}
+                  onPress={() =>
+                    navigation.navigate("AiAssistant", {
+                      prefill: `I have an appointment with ${nextAppointment.doctorName} on ${nextAppointment.date}.`,
+                    })
+                  }
+                >
                   <MessageCircle color="#FFFFFF" size={20} fill="white" />
                 </TouchableOpacity>
               </View>
@@ -203,7 +261,7 @@ export default ({ navigation }: any) => {
             subtitle="Take help in emergency situation"
             icon={{ uri: 'https://cdn-icons-png.flaticon.com/512/564/564619.png' }}
             color="#FFEEEE"
-            onPress={() => console.log("Emergency!")}
+            onPress={() => navigation.navigate("Emergency")}
           />
           <GridItem
             title="Log Medicines"
@@ -219,13 +277,20 @@ export default ({ navigation }: any) => {
             color="#FEFCE4"
             onPress={() => navigation.navigate("MentalHealth")}
           />
+          <GridItem
+            title="Community"
+            subtitle="Discuss health topics with others"
+            icon={{ uri: "https://cdn-icons-png.flaticon.com/512/942/942748.png" }}
+            color="#EEF2FF"
+            onPress={() => navigation.navigate("Community")}
+          />
         </View>
 
         {/* Promo Banner */}
         <View style={styles.promoBanner}>
           <View style={{ flex: 1 }}>
             <Text style={styles.promoTitle}>How AI is Revolutionizing Medical Consultations</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate("HealthArticles")}>
               <Text style={styles.promoLink}>Find out now →</Text>
             </TouchableOpacity>
           </View>
@@ -236,24 +301,7 @@ export default ({ navigation }: any) => {
 
       </ScrollView>
 
-      {/* Floating Bottom Navigation Bar */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity onPress={() => navigation.navigate("Home")}>
-          <Home color="#1C2A3A" size={24} />
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => navigation.navigate("AiAssistant")}>
-          <MessageCircle color="#FFFFFF" size={24} />
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => navigation.navigate("Profile")}>
-          <UserIcon color="#FFFFFF" size={24} />
-        </TouchableOpacity>
-
-        <TouchableOpacity>
-          <CalendarDays color="#FFFFFF" size={24} />
-        </TouchableOpacity>
-      </View>
+      <BottomNavBar navigation={navigation} />
     </SafeAreaView>
   );
 };

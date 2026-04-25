@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { createWellnessEntry } from "../../services/api";
 
 // GAD-7 — Generalized Anxiety Disorder 7-item scale (clinically validated)
 const QUESTIONS = [
@@ -40,6 +41,7 @@ function AnxietyQuizScreen({ navigation }: { navigation: any }) {
   const [currentQ, setCurrentQ]  = useState(0);
   const [showResult, setShowResult] = useState(false);
   const [started, setStarted]    = useState(false);
+  const [resultSaved, setResultSaved] = useState(false);
 
   const total = answers.reduce<number>((acc, a) => acc + (a ?? 0), 0);
   const result = getResult(total);
@@ -64,7 +66,25 @@ function AnxietyQuizScreen({ navigation }: { navigation: any }) {
     setCurrentQ(0);
     setShowResult(false);
     setStarted(false);
+    setResultSaved(false);
   };
+
+  useEffect(() => {
+    const saveResult = async () => {
+      if (!showResult || resultSaved) return;
+      try {
+        await createWellnessEntry("anxiety_quiz", {
+          total,
+          level: result.level,
+          answers,
+        });
+        setResultSaved(true);
+      } catch (error) {
+        console.warn("Anxiety result save failed:", error);
+      }
+    };
+    saveResult();
+  }, [showResult, resultSaved, total, result.level, answers]);
 
   if (!started) {
     return (

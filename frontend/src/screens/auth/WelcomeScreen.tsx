@@ -26,6 +26,15 @@ type Props = NativeStackScreenProps<AuthStackParamList, "Welcome">;
 const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
 
+  const withTimeout = async <T,>(promise: Promise<T>, ms = 20000): Promise<T> => {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) =>
+        setTimeout(() => reject(new Error("Request timed out. Please try again.")), ms),
+      ),
+    ]);
+  };
+
   useEffect(() => {
     GoogleSignin.configure({
       webClientId: "839845740526-efh4bq1oaunaboe80q6mk01av3oq5rs2.apps.googleusercontent.com", 
@@ -44,15 +53,17 @@ const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
 
       // 2. Firebase Sign-In (Exchange Google Token for Firebase User)
       const googleCredential = auth.GoogleAuthProvider.credential(googleIdToken);
-      const userCredential = await auth().signInWithCredential(googleCredential);
+      const userCredential = await withTimeout(
+        auth().signInWithCredential(googleCredential),
+      );
       
       // 3. 🟢 SYNC WITH MYSQL BACKEND
       console.log("✅ Google Auth Success. Syncing with MySQL...");
       
       // We need the FIREBASE token (not the Google one) to send to your backend
-      const firebaseToken = await userCredential.user.getIdToken();
+      const firebaseToken = await withTimeout(userCredential.user.getIdToken());
       
-      const dbResponse = await syncUser(firebaseToken);
+      const dbResponse = await withTimeout(syncUser(firebaseToken));
       console.log("✅ Backend Sync Complete:", dbResponse);
 
       // 4. Navigate to Home
@@ -70,6 +81,13 @@ const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
         // Handle Network Errors gracefully
         if (error.message && error.message.includes("Network Error")) {
            Alert.alert("Connection Failed", "Could not reach the server. Please check your internet.");
+        } else if (error.message && error.message.includes("timed out")) {
+           Alert.alert("Login Timeout", "Google login took too long. Please retry.");
+        } else if (
+          error.message &&
+          error.message.includes("EXPO_PUBLIC_API_URL")
+        ) {
+          Alert.alert("Backend URL Missing", error.message);
         } else {
            Alert.alert("Error", error.message);
         }

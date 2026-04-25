@@ -110,6 +110,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
+  lockoutText: {
+    color: "#B45309",
+    fontSize: 13,
+    textAlign: "center",
+    marginBottom: 4,
+  },
   footer: {
     flexDirection: "row",
     justifyContent: "center",

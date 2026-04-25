@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Linking,
 } from "react-native";
 import auth from "@react-native-firebase/auth";
 import styles from "./styles/RegisterScreenStyles";
@@ -24,6 +25,21 @@ const isValidEmail = (email: string) => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 };
 
+const getPasswordStrength = (value: string) => {
+  if (!value) return { label: "Too weak", score: 0, color: "#D1D5DB" };
+
+  let score = 0;
+  if (value.length >= 8) score += 1;
+  if (/[A-Z]/.test(value)) score += 1;
+  if (/[a-z]/.test(value)) score += 1;
+  if (/\d/.test(value)) score += 1;
+  if (/[^A-Za-z0-9]/.test(value)) score += 1;
+
+  if (score <= 2) return { label: "Weak", score, color: "#EF4444" };
+  if (score <= 4) return { label: "Medium", score, color: "#F59E0B" };
+  return { label: "Strong", score, color: "#10B981" };
+};
+
 type Props = NativeStackScreenProps<AuthStackParamList, "Register">;
 
 const RegisterScreen: React.FC<Props> = ({ navigation }) => {
@@ -31,6 +47,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [acceptedPolicies, setAcceptedPolicies] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -39,11 +56,35 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
     email: "",
     password: "",
     confirmPassword: "",
+    policies: "",
   });
+
+  const TERMS_URL = "https://sehat.ai/terms";
+  const PRIVACY_URL = "https://sehat.ai/privacy";
+  const passwordStrength = getPasswordStrength(password);
+
+  const openPolicyLink = async (url: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (!supported) {
+        Alert.alert("Link unavailable", "Could not open this policy link.");
+        return;
+      }
+      await Linking.openURL(url);
+    } catch (error) {
+      Alert.alert("Link unavailable", "Could not open this policy link.");
+    }
+  };
 
   const validateForm = () => {
     let valid = true;
-    let newErrors = { name: "", email: "", password: "", confirmPassword: "" };
+    let newErrors = {
+      name: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      policies: "",
+    };
 
     if (name.trim().length < 2) {
       newErrors.name = "Full Name is required";
@@ -62,6 +103,10 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
     }
     if (password !== confirmPassword) {
       newErrors.confirmPassword = "Passwords do not match";
+      valid = false;
+    }
+    if (!acceptedPolicies) {
+      newErrors.policies = "You must accept Terms and Privacy Policy";
       valid = false;
     }
 
@@ -208,6 +253,38 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
           {errors.password ? (
             <Text style={styles.errorText}>{errors.password}</Text>
           ) : null}
+          <View style={{ marginTop: 8 }}>
+            <View
+              style={{
+                width: "100%",
+                height: 6,
+                borderRadius: 4,
+                backgroundColor: "#E5E7EB",
+                overflow: "hidden",
+              }}
+            >
+              <View
+                style={[
+                  {
+                    height: "100%",
+                    borderRadius: 4,
+                    width: `${Math.max(20, (passwordStrength.score / 5) * 100)}%`,
+                    backgroundColor: passwordStrength.color,
+                  },
+                ]}
+              />
+            </View>
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "600",
+                marginTop: 6,
+                color: passwordStrength.color,
+              }}
+            >
+              Strength: {passwordStrength.label}
+            </Text>
+          </View>
         </View>
 
         <View style={styles.inputGroup}>
@@ -228,6 +305,47 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
           </View>
           {errors.confirmPassword ? (
             <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+          ) : null}
+        </View>
+
+        <View style={styles.policyContainer}>
+          <TouchableOpacity
+            style={styles.checkboxRow}
+            onPress={() => {
+              setAcceptedPolicies((prev) => !prev);
+              if (errors.policies) {
+                setErrors((prev) => ({ ...prev, policies: "" }));
+              }
+            }}
+            activeOpacity={0.8}
+          >
+            <View
+              style={[
+                styles.checkbox,
+                acceptedPolicies ? styles.checkboxChecked : null,
+              ]}
+            >
+              {acceptedPolicies ? <Text style={styles.checkboxTick}>✓</Text> : null}
+            </View>
+            <Text style={styles.policyText}>
+              I agree to the{" "}
+              <Text
+                style={styles.policyLink}
+                onPress={() => openPolicyLink(TERMS_URL)}
+              >
+                Terms of Service
+              </Text>{" "}
+              and{" "}
+              <Text
+                style={styles.policyLink}
+                onPress={() => openPolicyLink(PRIVACY_URL)}
+              >
+                Privacy Policy
+              </Text>
+            </Text>
+          </TouchableOpacity>
+          {errors.policies ? (
+            <Text style={styles.errorText}>{errors.policies}</Text>
           ) : null}
         </View>
 

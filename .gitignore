@@ -1,0 +1,15 @@
+node_modules/
+*/node_modules/
+.env
+**/.env
+**/serviceAccountKey.json
+__pycache__/
+*.pyc
+ai-service/temp/
+ai-service/npx
+.expo/
+**/.expo/
+dist/
+build/
+.DS_Store
+Thumbs.db

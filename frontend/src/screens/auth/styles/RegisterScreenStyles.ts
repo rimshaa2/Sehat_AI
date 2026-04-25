@@ -77,11 +77,69 @@ export default StyleSheet.create({
   eyeIcon: {
     padding: 4,
   },
+  strengthContainer: {
+    marginTop: 8,
+  },
+  strengthTrack: {
+    width: "100%",
+    height: 6,
+    borderRadius: 4,
+    backgroundColor: "#E5E7EB",
+    overflow: "hidden",
+  },
+  strengthFill: {
+    height: "100%",
+    borderRadius: 4,
+  },
+  strengthText: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 6,
+  },
   errorText: {
     color: "#EF4444",
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,
+  },
+  policyContainer: {
+    paddingHorizontal: 24,
+    marginTop: 8,
+  },
+  checkboxRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 1,
+    borderColor: "#D2D6DB",
+    borderRadius: 4,
+    marginTop: 2,
+    marginRight: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+  },
+  checkboxChecked: {
+    backgroundColor: "#199A8E",
+    borderColor: "#199A8E",
+  },
+  checkboxTick: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  policyText: {
+    flex: 1,
+    color: "#3F3F46",
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  policyLink: {
+    color: "#199A8E",
+    fontWeight: "600",
   },
   button: {
     marginHorizontal: 24,

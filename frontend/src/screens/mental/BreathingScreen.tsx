@@ -9,6 +9,7 @@ import {
   Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { createWellnessEntry } from "../../services/api";
 
 const TECHNIQUES = [
   {
@@ -67,6 +68,10 @@ function BreathingScreen({ navigation }: { navigation: any }) {
     setPhaseIndex(0);
     setCount(PHASE_DURATIONS[0]);
     animateCircle(PHASES[0]);
+    createWellnessEntry("breathing_session", {
+      technique: "Quick Preview",
+      pattern: "4-7-8",
+    }).catch((error) => console.warn("Breathing log failed:", error));
     intervalRef.current = setInterval(() => {
       countRef.current -= 1;
       if (countRef.current <= 0) {
