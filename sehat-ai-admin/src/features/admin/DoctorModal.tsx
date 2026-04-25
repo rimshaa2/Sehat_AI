@@ -27,6 +27,25 @@ export const DoctorModal = ({
   };
 
   const [formData, setFormData] = useState(initialState);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const validate = () => {
+    const errs: Record<string, string> = {};
+    if (!formData.user.fullName.trim()) errs.fullName = "Full name is required.";
+    else if (formData.user.fullName.trim().length < 2) errs.fullName = "Name must be at least 2 characters.";
+    if (!isEditMode) {
+      if (!formData.user.email.trim()) errs.email = "Email is required.";
+      else if (!/\S+@\S+\.\S+/.test(formData.user.email)) errs.email = "Enter a valid email address.";
+    }
+    if (!formData.specialization) errs.specialization = "Specialization is required.";
+    if (!formData.consultationFee || Number(formData.consultationFee) <= 0) errs.consultationFee = "Fee must be greater than 0.";
+    if (!formData.licenseNumber.trim()) errs.licenseNumber = "License number is required.";
+    else if (!/^\d{1,6}-[A-Za-z]$/.test(formData.licenseNumber.trim())) errs.licenseNumber = "Invalid PMDC format (e.g., 12345-P).";
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const clearErr = (field: string) => setFieldErrors(p => { const n = { ...p }; delete n[field]; return n; });
 
   useEffect(() => {
     if (doctor) {
@@ -50,6 +69,7 @@ export const DoctorModal = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate()) return;
     // CRITICAL: Ensure numbers are actually numbers for Sequelize
     const finalData = {
       ...formData,
@@ -103,17 +123,16 @@ export const DoctorModal = ({
                   size={18}
                 />
                 <input
-                  required
                   value={formData.user.fullName}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#199A8E] outline-none"
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      user: { ...formData.user, fullName: e.target.value },
-                    })
-                  }
+                  className={`w-full pl-12 pr-4 py-3 bg-slate-50 border rounded-2xl outline-none focus:ring-2 ${fieldErrors.fullName ? 'border-red-300 focus:ring-red-200' : 'border-slate-200 focus:ring-[#199A8E]'
+                    }`}
+                  onChange={(e) => {
+                    setFormData({ ...formData, user: { ...formData.user, fullName: e.target.value } });
+                    clearErr('fullName');
+                  }}
                 />
               </div>
+              {fieldErrors.fullName && <p className="text-xs text-red-500 font-medium ml-1 mt-1">{fieldErrors.fullName}</p>}
             </div>
 
             <div className="space-y-1">
@@ -121,18 +140,17 @@ export const DoctorModal = ({
                 Email
               </label>
               <input
-                required
                 type="email"
                 disabled={isEditMode}
                 value={formData.user.email}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl disabled:opacity-50 outline-none"
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    user: { ...formData.user, email: e.target.value },
-                  })
-                }
+                className={`w-full px-4 py-3 bg-slate-50 border rounded-2xl disabled:opacity-50 outline-none focus:ring-2 ${fieldErrors.email ? 'border-red-300 focus:ring-red-200' : 'border-slate-200 focus:ring-[#199A8E]'
+                  }`}
+                onChange={(e) => {
+                  setFormData({ ...formData, user: { ...formData.user, email: e.target.value } });
+                  clearErr('email');
+                }}
               />
+              {fieldErrors.email && <p className="text-xs text-red-500 font-medium ml-1 mt-1">{fieldErrors.email}</p>}
             </div>
 
             {/* Professional Info */}
@@ -146,12 +164,13 @@ export const DoctorModal = ({
                   size={18}
                 />
                 <select
-                  required
                   value={formData.specialization}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#199A8E] outline-none appearance-none"
-                  onChange={(e) =>
-                    setFormData({ ...formData, specialization: e.target.value })
-                  }
+                  className={`w-full pl-12 pr-4 py-3 bg-slate-50 border rounded-2xl outline-none appearance-none focus:ring-2 ${fieldErrors.specialization ? 'border-red-300 focus:ring-red-200' : 'border-slate-200 focus:ring-[#199A8E]'
+                    }`}
+                  onChange={(e) => {
+                    setFormData({ ...formData, specialization: e.target.value });
+                    clearErr('specialization');
+                  }}
                 >
                   <option value="" disabled>Select Specialization</option>
                   <option value="Ear, Nose & Throat">Ear, Nose & Throat</option>
@@ -160,6 +179,31 @@ export const DoctorModal = ({
                   <option value="Bones">Bones</option>
                 </select>
               </div>
+              {fieldErrors.specialization && <p className="text-xs text-red-500 font-medium ml-1 mt-1">{fieldErrors.specialization}</p>}
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">
+                License / PMDC Number
+              </label>
+              <div className="relative">
+                <ShieldCheck
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"
+                  size={18}
+                />
+                <input
+                  type="text"
+                  placeholder="e.g. 12345-P"
+                  value={formData.licenseNumber}
+                  className={`w-full pl-12 pr-4 py-3 bg-slate-50 border rounded-2xl outline-none focus:ring-2 ${fieldErrors.licenseNumber ? 'border-red-300 focus:ring-red-200' : 'border-slate-200 focus:ring-[#199A8E]'
+                    }`}
+                  onChange={(e) => {
+                    setFormData({ ...formData, licenseNumber: e.target.value });
+                    clearErr('licenseNumber');
+                  }}
+                />
+              </div>
+              {fieldErrors.licenseNumber && <p className="text-xs text-red-500 font-medium ml-1 mt-1">{fieldErrors.licenseNumber}</p>}
             </div>
 
             <div className="space-y-1">
@@ -172,18 +216,17 @@ export const DoctorModal = ({
                   size={18}
                 />
                 <input
-                  required
                   type="number"
                   value={formData.consultationFee}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none"
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      consultationFee: Number(e.target.value),
-                    })
-                  }
+                  className={`w-full pl-12 pr-4 py-3 bg-slate-50 border rounded-2xl outline-none focus:ring-2 ${fieldErrors.consultationFee ? 'border-red-300 focus:ring-red-200' : 'border-slate-200 focus:ring-[#199A8E]'
+                    }`}
+                  onChange={(e) => {
+                    setFormData({ ...formData, consultationFee: Number(e.target.value) });
+                    clearErr('consultationFee');
+                  }}
                 />
               </div>
+              {fieldErrors.consultationFee && <p className="text-xs text-red-500 font-medium ml-1 mt-1">{fieldErrors.consultationFee}</p>}
             </div>
           </div>
 

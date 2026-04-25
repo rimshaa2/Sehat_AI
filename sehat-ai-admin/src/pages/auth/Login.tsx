@@ -1,172 +1,305 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
-import { Lock, Mail, Loader2, ArrowRight } from 'lucide-react';
-import api from '../../lib/api';
+import React, { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import {
+  Lock,
+  Mail,
+  Loader2,
+  ArrowRight,
+  HeartPulse,
+  Activity,
+  ShieldCheck,
+  Eye,
+  EyeOff,
+} from "lucide-react";
+import api from "../../lib/api";
 
 export const Login = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
+
+  const validate = () => {
+    const errs: typeof fieldErrors = {};
+    if (!email.trim()) errs.email = "Email is required.";
+    else if (!/\S+@\S+\.\S+/.test(email)) errs.email = "Enter a valid email address.";
+    if (!password) errs.password = "Password is required.";
+    else if (password.length < 6) errs.password = "Password must be at least 6 characters.";
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate()) return;
     setLoading(true);
-    setError('');
-    
+    setError("");
+
     try {
       const auth = getAuth();
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
       const user = userCredential.user;
 
       const token = await user.getIdToken();
 
-      const response = await api.post('/users/sync', {idToken: token});
-      const {role} = response.data.user;
+      const response = await api.post("/users/sync", { idToken: token });
+      const { role } = response.data.user;
 
-      console.log("Login success! Role: ", role) ;
+      console.log("Login success! Role: ", role);
 
-      if( role === 'admin'){
-        navigate('/admin');
-      } else if(role === 'doctor'){
-        navigate('/doctor/dashboard')
-      }else{
-        navigate('/')
+      if (role === "admin") {
+        navigate("/admin");
+      } else if (role === "doctor") {
+        navigate("/doctor/dashboard");
+      } else {
+        navigate("/");
       }
-      
     } catch (err: any) {
       console.error(err);
-      setError('Invalid email or password. Please try again.');
+      setError("Invalid email or password. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex bg-gray-50">
-      
-      {/* LEFT SIDE: Brand & Illustration (Matches your Screenshot) */}
-      <div className="hidden lg:flex lg:w-1/2 bg-sehat-teal relative items-center justify-center overflow-hidden">
-        {/* Decorative Circle */}
-        <div className="absolute w-96 h-96 bg-white/10 rounded-full blur-3xl -top-20 -left-20"></div>
-        
-        <div className="relative z-10 text-center px-10">
-          <div className="mb-8">
-             {/* Replace this URL with your actual Robot Image */}
-            <img 
-              src="https://img.freepik.com/free-vector/cute-artificial-intelligence-robot-isometric-icon_1284-63045.jpg?t=st=1709587000" 
-              alt="Sehat AI Robot" 
-              className="w-80 mx-auto rounded-full shadow-2xl border-4 border-white/20 mix-blend-multiply" 
-            />
+    <div className="min-h-screen flex bg-[#F8FAFC] relative overflow-hidden">
+      {/* ── Ambient Background Glows ── */}
+      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-[#199A8E]/8 rounded-full blur-[140px] -z-10" />
+      <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-[#483D8B]/8 rounded-full blur-[140px] -z-10" />
+
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* LEFT PANEL — Brand Showcase                                   */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      <div className="hidden lg:flex lg:w-[52%] relative items-center justify-center overflow-hidden">
+        {/* Full‑bleed gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#199A8E] via-[#15857a] to-[#117a71]" />
+
+        {/* Decorative blobs */}
+        <div className="absolute w-[500px] h-[500px] bg-white/5 rounded-full blur-[100px] -top-32 -left-32" />
+        <div className="absolute w-[400px] h-[400px] bg-[#483D8B]/15 rounded-full blur-[100px] bottom-0 right-0" />
+        <div className="absolute w-64 h-64 border border-white/10 rounded-full top-1/4 right-16" />
+        <div className="absolute w-40 h-40 border border-white/5 rounded-full bottom-1/4 left-20" />
+
+        {/* Content */}
+        <div className="relative z-10 px-16 max-w-lg space-y-10">
+          {/* Logo */}
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+              <HeartPulse size={28} className="text-white" />
+            </div>
+            <span className="text-2xl font-black text-white tracking-tight">
+              Sehat AI
+            </span>
           </div>
-          <h2 className="text-4xl font-bold text-white mb-4 drop-shadow-md">
-            Sehat AI Admin
-          </h2>
-          <p className="text-teal-50 text-lg max-w-md mx-auto">
-            "Describe your symptoms, let AI assist you."
-            <br />
-            <span className="text-sm opacity-80 mt-2 block">Doctor & Patient Management Portal</span>
+
+          {/* Headline */}
+          <div className="space-y-4">
+            <h1 className="text-4xl xl:text-5xl font-black text-white leading-tight tracking-tight">
+              Smarter Healthcare,
+              <br />
+              <span className="text-white/80">Powered by AI</span>
+            </h1>
+            <p className="text-white/60 text-base leading-relaxed max-w-sm">
+              Manage appointments, verify specialists, and monitor system health
+              — all from one unified dashboard.
+            </p>
+          </div>
+
+          {/* Feature pills */}
+          <div className="space-y-3 pt-4">
+            {[
+              {
+                icon: Activity,
+                title: "Real‑time Analytics",
+                desc: "Monitor system health and patient flow",
+              },
+              {
+                icon: ShieldCheck,
+                title: "Doctor Verification",
+                desc: "Credentialing & approval workflows",
+              },
+            ].map((f, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-4 bg-white/10 backdrop-blur-sm px-5 py-4 rounded-2xl border border-white/10"
+              >
+                <div className="p-2.5 bg-white/15 rounded-xl flex-shrink-0">
+                  <f.icon size={20} className="text-white" />
+                </div>
+                <div>
+                  <p className="text-white text-sm font-bold">{f.title}</p>
+                  <p className="text-white/50 text-xs">{f.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Footer note */}
+          <p className="text-white/30 text-xs pt-6">
+            © 2026 Sehat AI. All rights reserved.
           </p>
         </div>
       </div>
 
-      {/* RIGHT SIDE: The Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white">
-        <div className="max-w-md w-full space-y-8">
-          
-          {/* Mobile Logo (Visible only on small screens) */}
-          <div className="lg:hidden text-center mb-10">
-            <h1 className="text-3xl font-bold text-sehat-teal">Sehat AI</h1>
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* RIGHT PANEL — Login Form                                      */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      <div className="w-full lg:w-[48%] flex items-center justify-center p-6 sm:p-10">
+        <div className="w-full max-w-[420px] space-y-8">
+          {/* Mobile logo */}
+          <div className="lg:hidden flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-gradient-to-br from-[#199A8E] to-[#117a71] rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+              <HeartPulse size={22} />
+            </div>
+            <span className="text-xl font-black text-slate-800 tracking-tight">
+              Sehat AI
+            </span>
           </div>
 
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900">Welcome Back</h2>
-            <p className="mt-2 text-sm text-gray-500">Please sign in to access the dashboard</p>
+          {/* Heading */}
+          <div className="space-y-2">
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight">
+              Welcome Back
+            </h2>
+            <p className="text-slate-500 text-sm font-medium">
+              Sign in to access your administration dashboard
+            </p>
           </div>
 
+          {/* Error */}
           {error && (
-            <div className="bg-red-50 text-red-600 p-4 rounded-lg text-sm text-center border border-red-100">
+            <div className="flex items-center gap-3 bg-red-50 text-red-600 p-4 rounded-2xl text-sm font-medium border border-red-100 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="w-8 h-8 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <ShieldCheck size={16} className="text-red-500" />
+              </div>
               {error}
             </div>
           )}
 
-          <form className="mt-8 space-y-6" onSubmit={handleLogin}>
-            <div className="space-y-4">
-              
-              {/* Email Input */}
+          {/* Form */}
+          <form className="space-y-5" onSubmit={handleLogin}>
+            {/* Email */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">
+                Email Address
+              </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
-                </div>
+                <Mail
+                  size={18}
+                  className={`absolute left-4 top-1/2 -translate-y-1/2 ${fieldErrors.email ? 'text-red-400' : 'text-slate-400'}`}
+                />
                 <input
                   type="email"
-                  required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none relative block w-full px-3 py-3 pl-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-sehat-teal focus:border-sehat-teal sm:text-sm transition-all"
-                  placeholder="Admin Email"
+                  onChange={(e) => { setEmail(e.target.value); setFieldErrors(p => ({ ...p, email: undefined })); }}
+                  placeholder="admin@sehatai.com"
+                  className={`w-full pl-12 pr-4 py-3.5 bg-slate-50 border rounded-2xl text-sm outline-none focus:ring-2 transition-all placeholder:text-slate-400 ${fieldErrors.email ? 'border-red-300 focus:ring-red-200 focus:border-red-400' : 'border-slate-200 focus:ring-[#199A8E]/30 focus:border-[#199A8E]'
+                    }`}
                 />
               </div>
+              {fieldErrors.email && <p className="text-xs text-red-500 font-medium ml-1 mt-1">{fieldErrors.email}</p>}
+            </div>
 
-              {/* Password Input */}
+            {/* Password */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">
+                Password
+              </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
-                </div>
+                <Lock
+                  size={18}
+                  className={`absolute left-4 top-1/2 -translate-y-1/2 ${fieldErrors.password ? 'text-red-400' : 'text-slate-400'}`}
+                />
                 <input
-                  type="password"
-                  required
+                  type={showPassword ? "text" : "password"}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none relative block w-full px-3 py-3 pl-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-sehat-teal focus:border-sehat-teal sm:text-sm transition-all"
-                  placeholder="Password"
+                  onChange={(e) => { setPassword(e.target.value); setFieldErrors(p => ({ ...p, password: undefined })); }}
+                  placeholder="Enter your password"
+                  className={`w-full pl-12 pr-12 py-3.5 bg-slate-50 border rounded-2xl text-sm outline-none focus:ring-2 transition-all placeholder:text-slate-400 ${fieldErrors.password ? 'border-red-300 focus:ring-red-200 focus:border-red-400' : 'border-slate-200 focus:ring-[#199A8E]/30 focus:border-[#199A8E]'
+                    }`}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
+              {fieldErrors.password && <p className="text-xs text-red-500 font-medium ml-1 mt-1">{fieldErrors.password}</p>}
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
+            {/* Remember / Forgot */}
+            <div className="flex items-center justify-between px-1">
+              <label className="flex items-center gap-2 cursor-pointer group">
                 <input
-                  id="remember-me"
-                  name="remember-me"
                   type="checkbox"
-                  className="h-4 w-4 text-sehat-teal focus:ring-sehat-teal border-gray-300 rounded"
+                  className="h-4 w-4 text-[#199A8E] border-slate-300 rounded focus:ring-[#199A8E] accent-[#199A8E]"
                 />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+                <span className="text-sm text-slate-600 font-medium group-hover:text-slate-800 transition-colors">
                   Remember me
-                </label>
-              </div>
-
-              <div className="text-sm">
-                <a href="#" className="font-medium text-sehat-purple hover:text-indigo-500">
-                  Forgot password?
-                </a>
-              </div>
+                </span>
+              </label>
+              <a
+                href="#"
+                className="text-sm font-semibold text-[#199A8E] hover:text-[#15857a] transition-colors"
+              >
+                Forgot password?
+              </a>
             </div>
 
-            {/* Login Button - Matches your 'Purple' Banner buttons */}
+            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-sehat-purple hover:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sehat-purple transition-all shadow-lg hover:shadow-xl disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-[#199A8E] to-[#15857a] text-white rounded-2xl text-sm font-bold shadow-lg shadow-emerald-200/60 hover:shadow-xl hover:shadow-emerald-200/80 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100"
             >
               {loading ? (
-                <Loader2 className="animate-spin h-5 w-5" />
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Signing in…
+                </>
               ) : (
-                <span className="flex items-center gap-2">
-                  Sign In <ArrowRight className="h-4 w-4" />
-                </span>
+                <>
+                  Sign In <ArrowRight size={16} />
+                </>
               )}
             </button>
           </form>
-          
-          <div className="text-center mt-4">
-            <p className="text-xs text-gray-400">
-              © 2026 Sehat AI. Restricted Area.
-            </p>
+
+          {/* Divider */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-200" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="px-4 text-xs font-semibold text-slate-400 bg-[#F8FAFC]">
+                OR
+              </span>
+            </div>
           </div>
+
+          {/* Go back link */}
+          <Link
+            to="/signin-select"
+            className="flex items-center justify-center gap-2 w-full py-3.5 border border-slate-200 rounded-2xl text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all"
+          >
+            Back to Role Selection
+          </Link>
+
+          {/* Footer */}
+          <p className="text-center text-xs text-slate-400 pt-2">
+            © 2026 Sehat AI · Secure Admin Portal
+          </p>
         </div>
       </div>
     </div>

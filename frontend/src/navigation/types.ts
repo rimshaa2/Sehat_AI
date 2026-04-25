@@ -54,6 +54,7 @@ export type AuthStackParamList = {
   BookingSuccess: undefined;
   AppointmentDetails: undefined;
   RescheduleAppointment: undefined;
+  MyAppointments: undefined;
 
   // Profile
   Profile: undefined;

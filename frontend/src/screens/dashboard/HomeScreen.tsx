@@ -54,19 +54,23 @@ export default ({ navigation }: any) => {
             const appointments = await getMyAppointments(userProfile.id, 'patient');
 
             if (appointments && appointments.length > 0) {
-              // Get the most recent/upcoming appointment
-              const upcoming = appointments[0];
+              // Get the most recent/upcoming appointment that is actually scheduled
+              const upcoming = appointments.find((a: any) => a.status === 'scheduled');
 
-              // C. Map Backend Data to UI Structure
-              setNextAppointment({
-                id: upcoming.id,
-                doctorId: upcoming.doctorId,
-                doctorName: upcoming.doctor?.user?.fullName || "Unknown Doctor",
-                doctorSpecialty: upcoming.doctor?.specialization || "General",
-                doctorImage: upcoming.doctor?.user?.profilePicture,
-                date: upcoming.appointmentDate,
-                time: upcoming.timeSlot
-              });
+              if (upcoming) {
+                // C. Map Backend Data to UI Structure
+                setNextAppointment({
+                  id: upcoming.id,
+                  doctorId: upcoming.doctorId,
+                  doctorName: upcoming.doctor?.user?.fullName || "Unknown Doctor",
+                  doctorSpecialty: upcoming.doctor?.specialization || "General",
+                  doctorImage: upcoming.doctor?.user?.profilePicture,
+                  date: upcoming.appointmentDate,
+                  time: upcoming.timeSlot
+                });
+              } else {
+                setNextAppointment(null);
+              }
             } else {
               setNextAppointment(null);
             }
@@ -151,9 +155,9 @@ export default ({ navigation }: any) => {
                   <Text style={styles.doctorName}>{nextAppointment.doctorName}</Text>
                   <Text style={styles.doctorSpeciality}>{nextAppointment.doctorSpecialty}</Text>
                 </View>
-                <TouchableOpacity style={styles.chatButton}>
+                {/* <TouchableOpacity style={styles.chatButton}>
                   <MessageCircle color="#FFFFFF" size={20} fill="white" />
-                </TouchableOpacity>
+                </TouchableOpacity> */}
               </View>
 
               <View style={styles.dateContainer}>
@@ -250,7 +254,7 @@ export default ({ navigation }: any) => {
           <UserIcon color="#FFFFFF" size={24} />
         </TouchableOpacity>
 
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate("MyAppointments")}>
           <CalendarDays color="#FFFFFF" size={24} />
         </TouchableOpacity>
       </View>

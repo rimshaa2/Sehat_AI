@@ -9,23 +9,23 @@ import {
   ActivityIndicator,
   Keyboard,
   TouchableWithoutFeedback,
+  ScrollView,
 } from "react-native";
-import { ChevronLeft } from "lucide-react-native";
-import { getAuth, updateProfile } from "@react-native-firebase/auth";
-import { getFirestore, doc, updateDoc } from "@react-native-firebase/firestore";
+import { ChevronLeft, User, Mail, Phone } from "lucide-react-native";
+import { getAuth } from "@react-native-firebase/auth";
+import { updateUserProfile } from "../../services/api";
 import styles from "./styles/EditProfileStyles";
 
 export default ({ navigation, route }: any) => {
-  // Get existing data passed from ProfileScreen
   const { userData } = route.params || {};
 
   const [fullName, setFullName] = useState(userData?.fullName || "");
-  const [phone, setPhone] = useState(userData?.phone || "");
+  const [phone, setPhone] = useState(userData?.phoneNumber || "");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSave = async () => {
     Keyboard.dismiss();
-    
+
     if (fullName.trim().length < 2) {
       Alert.alert("Error", "Name must be at least 2 characters.");
       return;
@@ -35,24 +35,17 @@ export default ({ navigation, route }: any) => {
 
     try {
       const auth = getAuth();
-      const db = getFirestore();
       const user = auth.currentUser;
 
       if (user) {
-        // 1. Update Firebase Auth Profile (DisplayName)
-        await updateProfile(user, {
-          displayName: fullName,
-        });
-
-        // 2. Update Firestore User Document
-        const userRef = doc(db, "users", user.uid);
-        await updateDoc(userRef, {
-          fullName: fullName,
-          phone: phone,
+        // Save to Railway backend
+        await updateUserProfile(user.uid, {
+          fullName: fullName.trim(),
+          phoneNumber: phone.trim(),
         });
 
         Alert.alert("Success", "Profile updated successfully!", [
-          { text: "OK", onPress: () => navigation.goBack() }
+          { text: "OK", onPress: () => navigation.goBack() },
         ]);
       }
     } catch (error) {
@@ -74,54 +67,59 @@ export default ({ navigation, route }: any) => {
           <Text style={styles.headerTitle}>Edit Profile</Text>
         </View>
 
-        {/* Form */}
-        <View style={styles.formContainer}>
-          {/* Name Field */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Full Name</Text>
-            <TextInput
-              style={styles.input}
-              value={fullName}
-              onChangeText={setFullName}
-              placeholder="Enter your name"
-            />
-          </View>
+        <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          {/* Form */}
+          <View style={styles.formContainer}>
+            {/* Name Field */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Full Name</Text>
+              <TextInput
+                style={styles.input}
+                value={fullName}
+                onChangeText={setFullName}
+                placeholder="Enter your name"
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
 
-          {/* Email Field (Read Only) */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={[styles.input, styles.disabledInput]}
-              value={userData?.email}
-              editable={false} 
-            />
-          </View>
+            {/* Email Field (Read Only) */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                style={[styles.input, styles.disabledInput]}
+                value={userData?.email}
+                editable={false}
+              />
+            </View>
 
-          {/* Phone Field */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Phone Number</Text>
-            <TextInput
-              style={styles.input}
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="Enter phone number"
-              keyboardType="phone-pad"
-            />
-          </View>
+            {/* Phone Field */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Phone Number</Text>
+              <TextInput
+                style={styles.input}
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="Enter phone number"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="phone-pad"
+              />
+            </View>
 
-          {/* Save Button */}
-          <TouchableOpacity 
-            style={styles.saveButton} 
-            onPress={handleSave}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.saveButtonText}>Save Changes</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+            {/* Save Button */}
+            <TouchableOpacity
+              style={[styles.saveButton, isLoading && { opacity: 0.7 }]}
+              onPress={handleSave}
+              disabled={isLoading}
+              activeOpacity={0.8}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.saveButtonText}>Save Changes</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </SafeAreaView>
     </TouchableWithoutFeedback>
   );

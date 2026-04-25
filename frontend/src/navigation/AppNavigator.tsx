@@ -46,6 +46,7 @@ import BookingSuccessScreen from "../screens/appointment/BookingSuccessScreen";
 
 import AppointmentDetailsScreen from "../screens/appointment/AppointmentDetailsScreen";
 import RescheduleAppointmentScreen from "../screens/appointment/RescheduleAppointmentScreen";
+import MyAppointmentsScreen from "../screens/appointment/MyAppointmentsScreen";
 
 // ── Profile ───────────────────────────────────────────────────────────────────
 import ProfileScreen from "../screens/profile/ProfileScreen";
@@ -65,66 +66,67 @@ const Stack = createNativeStackNavigator<AuthStackParamList>();
 
 const AppNavigator = () => {
   return (
-   
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
 
-        {/* ── Auth ── */}
-        <Stack.Screen name="Welcome"      component={WelcomeScreen} />
-        <Stack.Screen name="PhoneNumber"  component={PhoneNumberScreen} />
-        <Stack.Screen name="Otp"          component={OtpScreen} />
-        <Stack.Screen name="Register"     component={RegisterScreen} />
-        <Stack.Screen name="Login"        component={LoginScreen} />
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
 
-        {/* ── Dashboard ── */}
-        <Stack.Screen name="Home"         component={HomeScreen} />
+      {/* ── Auth ── */}
+      <Stack.Screen name="Welcome" component={WelcomeScreen} />
+      <Stack.Screen name="PhoneNumber" component={PhoneNumberScreen} />
+      <Stack.Screen name="Otp" component={OtpScreen} />
+      <Stack.Screen name="Register" component={RegisterScreen} />
+      <Stack.Screen name="Login" component={LoginScreen} />
 
-        {/* ── Mental Health — Hub ── */}
-        <Stack.Screen name="MentalHealth" component={MentalHealthScreen} />
-        <Stack.Screen name="DailyMoment"  component={DailyMomentScreen} />
-        <Stack.Screen name="CrisisHelp"   component={CrisisHelpScreen} />
+      {/* ── Dashboard ── */}
+      <Stack.Screen name="Home" component={HomeScreen} />
 
-        {/* ── Mental Health — Breathing ── */}
-        <Stack.Screen name="Breathing"    component={BreathingScreen} />
-        <Stack.Screen name="Breathing478" component={Breathing478Screen} />
-        <Stack.Screen name="BoxBreathing" component={BoxBreathingScreen} />
-        <Stack.Screen name="CalmingBreath" component={CalmingBreathScreen} />
+      {/* ── Mental Health — Hub ── */}
+      <Stack.Screen name="MentalHealth" component={MentalHealthScreen} />
+      <Stack.Screen name="DailyMoment" component={DailyMomentScreen} />
+      <Stack.Screen name="CrisisHelp" component={CrisisHelpScreen} />
 
-        {/* ── Mental Health — Core Tools ── */}
-        <Stack.Screen name="Meditation"   component={MeditationScreen} />
-        <Stack.Screen name="Journal"      component={JournalScreen} />
-        <Stack.Screen name="Talk"         component={TalkScreen} />
+      {/* ── Mental Health — Breathing ── */}
+      <Stack.Screen name="Breathing" component={BreathingScreen} />
+      <Stack.Screen name="Breathing478" component={Breathing478Screen} />
+      <Stack.Screen name="BoxBreathing" component={BoxBreathingScreen} />
+      <Stack.Screen name="CalmingBreath" component={CalmingBreathScreen} />
 
-        {/* ── Mental Health — Track & Assess ── */}
-        <Stack.Screen name="MoodTracker"  component={MoodTrackerScreen} />
-        <Stack.Screen name="SleepTracker" component={SleepTrackerScreen} />
-        <Stack.Screen name="AnxietyQuiz"  component={AnxietyQuizScreen} />
-        <Stack.Screen name="Affirmations" component={AffirmationsScreen} />
+      {/* ── Mental Health — Core Tools ── */}
+      <Stack.Screen name="Meditation" component={MeditationScreen} />
+      <Stack.Screen name="Journal" component={JournalScreen} />
+      <Stack.Screen name="Talk" component={TalkScreen} />
 
-        {/* ── Appointments ── */}
-        <Stack.Screen name="BookAppointment"        component={BookAppointmentScreen} />
-        <Stack.Screen name="DoctorList"             component={DoctorListScreen} />
-        <Stack.Screen name="DoctorDetails"          component={DoctorDetailsScreen} />
-        <Stack.Screen name="Payment"                component={PaymentScreen} />
-        <Stack.Screen name="BookingSuccess"         component={BookingSuccessScreen} />
-        <Stack.Screen name="AppointmentDetails"     component={AppointmentDetailsScreen} />
-        <Stack.Screen name="RescheduleAppointment"  component={RescheduleAppointmentScreen} />
+      {/* ── Mental Health — Track & Assess ── */}
+      <Stack.Screen name="MoodTracker" component={MoodTrackerScreen} />
+      <Stack.Screen name="SleepTracker" component={SleepTrackerScreen} />
+      <Stack.Screen name="AnxietyQuiz" component={AnxietyQuizScreen} />
+      <Stack.Screen name="Affirmations" component={AffirmationsScreen} />
 
-        {/* ── Profile ── */}
-        <Stack.Screen name="Profile"      component={ProfileScreen} />
-        <Stack.Screen name="EditProfile"  component={EditProfileScreen} />
+      {/* ── Appointments ── */}
+      <Stack.Screen name="BookAppointment" component={BookAppointmentScreen} />
+      <Stack.Screen name="DoctorList" component={DoctorListScreen} />
+      <Stack.Screen name="DoctorDetails" component={DoctorDetailsScreen} />
+      <Stack.Screen name="Payment" component={PaymentScreen} />
+      <Stack.Screen name="BookingSuccess" component={BookingSuccessScreen} />
+      <Stack.Screen name="AppointmentDetails" component={AppointmentDetailsScreen} />
+      <Stack.Screen name="RescheduleAppointment" component={RescheduleAppointmentScreen} />
+      <Stack.Screen name="MyAppointments" component={MyAppointmentsScreen} />
 
-        {/* ── Other ── */}
-        <Stack.Screen name="AiAssistant"    component={AiAssistantScreen} />
-        <Stack.Screen name="MedicalRecords" component={MedicalRecordsScreen} />
-{/* ── Medicine Tracker ── */}
+      {/* ── Profile ── */}
+      <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
 
-<Stack.Screen name="MedicineDashboard" component={MedicineDashboardScreen} />
-<Stack.Screen name="AddMedicine"       component={AddMedicineScreen} />
-<Stack.Screen name="MedicineDetail"    component={MedicineDetailScreen} />
-<Stack.Screen name="RefillManager"     component={RefillManagerScreen} />
+      {/* ── Other ── */}
+      <Stack.Screen name="AiAssistant" component={AiAssistantScreen} />
+      <Stack.Screen name="MedicalRecords" component={MedicalRecordsScreen} />
+      {/* ── Medicine Tracker ── */}
 
-      </Stack.Navigator>
-    
+      <Stack.Screen name="MedicineDashboard" component={MedicineDashboardScreen} />
+      <Stack.Screen name="AddMedicine" component={AddMedicineScreen} />
+      <Stack.Screen name="MedicineDetail" component={MedicineDetailScreen} />
+      <Stack.Screen name="RefillManager" component={RefillManagerScreen} />
+
+    </Stack.Navigator>
+
   );
 };
 

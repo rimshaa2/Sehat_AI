@@ -1,112 +1,149 @@
+import { useState, useEffect } from "react";
 import {
   Users,
   CalendarCheck,
   Activity,
-  AlertTriangle,
-  Download,
+  Stethoscope,
   Clock,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
+import api from "../../lib/api";
+
+interface AppointmentRow {
+  id: number;
+  patientName: string;
+  doctorName: string;
+  date: string;
+  rawDate: string;
+  time: string;
+  type: string;
+  status: string;
+}
 
 export const Dashboard = () => {
-  // Mock Data (Replace with API calls later)
+  const [appointments, setAppointments] = useState<AppointmentRow[]>([]);
+  const [doctorCount, setDoctorCount] = useState(0);
+  const [userCount, setUserCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [aptsRes, docsRes, usersRes] = await Promise.all([
+          api.get("/appointments/admin/all"),
+          api.get("/doctors/admin/all"),
+          api.get("/users/all-users"),
+        ]);
+
+        setAppointments(aptsRes.data || []);
+        setDoctorCount(Array.isArray(docsRes.data) ? docsRes.data.length : 0);
+        setUserCount(Array.isArray(usersRes.data) ? usersRes.data.length : 0);
+      } catch (error) {
+        console.error("Dashboard fetch error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // ── Computed Stats ──
+  const today = new Date().toISOString().split("T")[0];
+
+  const totalAppointments = appointments.length;
+  const todayAppointments = appointments.filter(
+    (a) => a.rawDate === today
+  ).length;
+
+  const upcomingAppointments = appointments.filter(
+    (a) => a.rawDate >= today && (a.status === "scheduled" || a.status === "confirmed")
+  ).length;
+
+  const completedAppointments = appointments.filter(
+    (a) => a.status === "completed"
+  ).length;
+
+  const scheduledCount = appointments.filter(
+    (a) => a.status === "scheduled" || a.status === "confirmed"
+  ).length;
+  const cancelledCount = appointments.filter(
+    (a) => a.status === "cancelled"
+  ).length;
+
   const stats = [
     {
       label: "Total Doctors",
-      value: "48",
-      subtext: "+3 this month",
-      icon: Users,
+      value: doctorCount.toString(),
+      subtext: "Registered physicians",
+      icon: Stethoscope,
       color: "text-blue-600",
       bg: "bg-blue-50",
     },
     {
       label: "Total Appointments",
-      value: "2,847",
-      subtext: "+12% from last week",
+      value: totalAppointments.toLocaleString(),
+      subtext: `${todayAppointments} today`,
       icon: CalendarCheck,
       color: "text-emerald-600",
       bg: "bg-emerald-50",
     },
     {
-      label: "Active Users",
-      value: "1,234",
-      subtext: "892 patients online",
-      icon: Activity,
+      label: "Total Users",
+      value: userCount.toLocaleString(),
+      subtext: "Patients & staff",
+      icon: Users,
       color: "text-purple-600",
       bg: "bg-purple-50",
     },
     {
-      label: "Emergency Alerts",
-      value: "3",
-      subtext: "Requires attention",
-      icon: AlertTriangle,
-      color: "text-red-600",
-      bg: "bg-red-50",
+      label: "Completed",
+      value: completedAppointments.toLocaleString(),
+      subtext: "Finished appointments",
+      icon: CheckCircle2,
+      color: "text-teal-600",
+      bg: "bg-teal-50",
     },
   ];
+
+  // ── Usage Bars (percentage of total appointments) ──
+  const pct = (n: number) =>
+    totalAppointments > 0 ? Math.round((n / totalAppointments) * 100) : 0;
 
   const usageTrends = [
-    { label: "Appointments", value: 85, color: "bg-emerald-500" },
-    { label: "Patient Records", value: 92, color: "bg-blue-500" },
-    { label: "Prescriptions", value: 78, color: "bg-purple-500" },
-    { label: "Teleconsultations", value: 65, color: "bg-green-500" },
+    { label: "Scheduled / Confirmed", value: pct(scheduledCount), color: "bg-emerald-500" },
+    { label: "Completed", value: pct(completedAppointments), color: "bg-blue-500" },
+    { label: "Cancelled", value: pct(cancelledCount), color: "bg-red-400" },
   ];
 
-  const appointments = [
-    {
-      patient: "John Anderson",
-      doctor: "Dr. Sarah Johnson",
-      date: "2026-02-04",
-      time: "09:00 AM",
-      type: "General Checkup",
-      status: "confirmed",
-    },
-    {
-      patient: "Emily Davis",
-      doctor: "Dr. Michael Chen",
-      date: "2026-02-04",
-      time: "10:30 AM",
-      type: "Follow up",
-      status: "pending",
-    },
-    {
-      patient: "Robert Smith",
-      doctor: "Dr. Lisa Wong",
-      date: "2026-02-04",
-      time: "11:00 AM",
-      type: "Consultation",
-      status: "confirmed",
-    },
-    {
-      patient: "Maria Garcia",
-      doctor: "Dr. Sarah Johnson",
-      date: "2026-02-04",
-      time: "02:00 PM",
-      type: "Lab Review",
-      status: "completed",
-    },
-    {
-      patient: "David Wilson",
-      doctor: "Dr. Emily Brown",
-      date: "2026-02-05",
-      time: "09:30 AM",
-      type: "Treatment",
-      status: "confirmed",
-    },
-  ];
+  // ── Recent 8 appointments ──
+  const recentAppointments = appointments.slice(0, 8);
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "confirmed":
+      case "scheduled":
         return "bg-emerald-100 text-emerald-700";
       case "pending":
         return "bg-yellow-100 text-yellow-700";
       case "completed":
         return "bg-blue-100 text-blue-700";
+      case "cancelled":
+        return "bg-red-100 text-red-700";
       default:
         return "bg-gray-100 text-gray-700";
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 size={32} className="text-[#199A8E] animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -143,10 +180,10 @@ export const Dashboard = () => {
 
       {/* Middle Section: Trends & Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* System Usage Trends */}
+        {/* Appointment Breakdown */}
         <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
           <h3 className="font-semibold text-gray-800 mb-6">
-            System Usage Trends
+            Appointment Breakdown
           </h3>
           <div className="space-y-6">
             {usageTrends.map((trend, index) => (
@@ -170,10 +207,10 @@ export const Dashboard = () => {
           </div>
         </div>
 
-        {/* Appointment Trends */}
+        {/* Quick Stats Panel */}
         <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
           <h3 className="font-semibold text-gray-800 mb-6">
-            Appointment Trends
+            Appointment Snapshot
           </h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-lg">
@@ -188,7 +225,7 @@ export const Dashboard = () => {
                   </p>
                 </div>
               </div>
-              <span className="font-bold text-gray-900">124</span>
+              <span className="font-bold text-gray-900">{todayAppointments}</span>
             </div>
 
             <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
@@ -198,10 +235,10 @@ export const Dashboard = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-900">Upcoming</p>
-                  <p className="text-xs text-blue-600">Next 7 days</p>
+                  <p className="text-xs text-blue-600">Scheduled / Confirmed</p>
                 </div>
               </div>
-              <span className="font-bold text-gray-900">487</span>
+              <span className="font-bold text-gray-900">{upcomingAppointments}</span>
             </div>
 
             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -211,10 +248,10 @@ export const Dashboard = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-900">Completed</p>
-                  <p className="text-xs text-gray-500">This month</p>
+                  <p className="text-xs text-gray-500">All time</p>
                 </div>
               </div>
-              <span className="font-bold text-gray-900">1,249</span>
+              <span className="font-bold text-gray-900">{completedAppointments}</span>
             </div>
           </div>
         </div>
@@ -224,10 +261,7 @@ export const Dashboard = () => {
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex justify-between items-center">
           <h3 className="font-semibold text-gray-800">Recent Appointments</h3>
-          <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-emerald-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:border-emerald-500 transition-colors">
-            <Download size={16} />
-            Export
-          </button>
+          <span className="text-xs text-gray-400">Showing latest {recentAppointments.length}</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -242,24 +276,32 @@ export const Dashboard = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {appointments.map((apt, i) => (
-                <tr key={i} className="hover:bg-gray-50 transition-colors">
-                  <td className="p-4 pl-6 font-medium text-gray-900">
-                    {apt.patient}
-                  </td>
-                  <td className="p-4 text-gray-600">{apt.doctor}</td>
-                  <td className="p-4 text-gray-500 text-sm">{apt.date}</td>
-                  <td className="p-4 text-gray-500 text-sm">{apt.time}</td>
-                  <td className="p-4 text-gray-600">{apt.type}</td>
-                  <td className="p-4 pr-6 text-right">
-                    <span
-                      className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${getStatusColor(apt.status)}`}
-                    >
-                      {apt.status}
-                    </span>
+              {recentAppointments.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-gray-400">
+                    No appointments found
                   </td>
                 </tr>
-              ))}
+              ) : (
+                recentAppointments.map((apt) => (
+                  <tr key={apt.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="p-4 pl-6 font-medium text-gray-900">
+                      {apt.patientName}
+                    </td>
+                    <td className="p-4 text-gray-600">{apt.doctorName}</td>
+                    <td className="p-4 text-gray-500 text-sm">{apt.date}</td>
+                    <td className="p-4 text-gray-500 text-sm">{apt.time}</td>
+                    <td className="p-4 text-gray-600">{apt.type}</td>
+                    <td className="p-4 pr-6 text-right">
+                      <span
+                        className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${getStatusColor(apt.status)}`}
+                      >
+                        {apt.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

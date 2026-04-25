@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Platform } from 'react-native';
 
 // 🟢 Python Backend (Keep Local for now if running on laptop)
-const PYTHON_URL = 'http://192.168.100.153:5001';
+const PYTHON_URL = 'http://192.168.43.117:5001';
 
 import { getAuth } from '@react-native-firebase/auth';
 
@@ -47,6 +47,16 @@ export const getUserProfile = async (firebaseUid) => {
     return response.data;
   } catch (error) {
     console.error("Get User Error:", error);
+    throw error;
+  }
+};
+
+export const updateUserProfile = async (firebaseUid, data) => {
+  try {
+    const response = await api.put(`/api/users/${firebaseUid}`, data);
+    return response.data;
+  } catch (error) {
+    console.error("Update User Error:", error);
     throw error;
   }
 };

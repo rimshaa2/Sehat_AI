@@ -13,9 +13,26 @@ export const DoctorApplication = () => {
     consultationFee: "",
     bio: "",
   });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const validate = () => {
+    const errs: Record<string, string> = {};
+    if (!form.specialization) errs.specialization = "Specialization is required.";
+    if (!form.experienceYears) errs.experienceYears = "Experience is required.";
+    else if (Number(form.experienceYears) < 0 || Number(form.experienceYears) > 70) errs.experienceYears = "Enter a valid number (0–70).";
+    if (!form.consultationFee) errs.consultationFee = "Consultation fee is required.";
+    else if (Number(form.consultationFee) <= 0) errs.consultationFee = "Fee must be greater than 0.";
+    if (!form.licenseNumber.trim()) errs.licenseNumber = "License number is required.";
+    else if (!/^\d{1,6}-[A-Za-z]$/.test(form.licenseNumber.trim())) errs.licenseNumber = "Invalid PMDC format. Expected: 12345-P (digits, dash, letter).";
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const clearErr = (field: string) => setFieldErrors(p => { const n = { ...p }; delete n[field]; return n; });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate()) return;
     setLoading(true);
     try {
       await api.post("/doctors/apply", form);
@@ -51,12 +68,13 @@ export const DoctorApplication = () => {
                   size={18}
                 />
                 <select
-                  className="w-full pl-10 p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-sehat-teal"
+                  className={`w-full pl-10 p-3 border rounded-lg outline-none focus:ring-2 ${fieldErrors.specialization ? 'border-red-300 focus:ring-red-200' : 'border-gray-300 focus:ring-sehat-teal'
+                    }`}
                   value={form.specialization}
-                  onChange={(e) =>
-                    setForm({ ...form, specialization: e.target.value })
-                  }
-                  required
+                  onChange={(e) => {
+                    setForm({ ...form, specialization: e.target.value });
+                    clearErr('specialization');
+                  }}
                 >
                   <option value="" disabled>Select...</option>
                   <option value="Ear, Nose & Throat">Ear, Nose & Throat</option>
@@ -65,6 +83,7 @@ export const DoctorApplication = () => {
                   <option value="Bones">Bones</option>
                 </select>
               </div>
+              {fieldErrors.specialization && <p className="text-xs text-red-500 font-medium mt-1">{fieldErrors.specialization}</p>}
             </div>
 
             <div>
@@ -73,13 +92,15 @@ export const DoctorApplication = () => {
               </label>
               <input
                 type="number"
-                className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-sehat-teal"
+                className={`w-full p-3 border rounded-lg outline-none focus:ring-2 ${fieldErrors.experienceYears ? 'border-red-300 focus:ring-red-200' : 'border-gray-300 focus:ring-sehat-teal'
+                  }`}
                 value={form.experienceYears}
-                onChange={(e) =>
-                  setForm({ ...form, experienceYears: e.target.value })
-                }
-                required
+                onChange={(e) => {
+                  setForm({ ...form, experienceYears: e.target.value });
+                  clearErr('experienceYears');
+                }}
               />
+              {fieldErrors.experienceYears && <p className="text-xs text-red-500 font-medium mt-1">{fieldErrors.experienceYears}</p>}
             </div>
           </div>
           <div>
@@ -88,14 +109,16 @@ export const DoctorApplication = () => {
             </label>
             <input
               type="number"
-              className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-sehat-teal"
+              className={`w-full p-3 border rounded-lg outline-none focus:ring-2 ${fieldErrors.consultationFee ? 'border-red-300 focus:ring-red-200' : 'border-gray-300 focus:ring-sehat-teal'
+                }`}
               placeholder="e.g. 1500"
               value={form.consultationFee}
-              onChange={(e) =>
-                setForm({ ...form, consultationFee: e.target.value })
-              }
-              required
+              onChange={(e) => {
+                setForm({ ...form, consultationFee: e.target.value });
+                clearErr('consultationFee');
+              }}
             />
+            {fieldErrors.consultationFee && <p className="text-xs text-red-500 font-medium mt-1">{fieldErrors.consultationFee}</p>}
           </div>
 
           <div>
@@ -110,14 +133,16 @@ export const DoctorApplication = () => {
               <input
                 type="text"
                 placeholder="e.g. 12345-P"
-                className="w-full pl-10 p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-sehat-teal"
+                className={`w-full pl-10 p-3 border rounded-lg outline-none focus:ring-2 ${fieldErrors.licenseNumber ? 'border-red-300 focus:ring-red-200' : 'border-gray-300 focus:ring-sehat-teal'
+                  }`}
                 value={form.licenseNumber}
-                onChange={(e) =>
-                  setForm({ ...form, licenseNumber: e.target.value })
-                }
-                required
+                onChange={(e) => {
+                  setForm({ ...form, licenseNumber: e.target.value });
+                  clearErr('licenseNumber');
+                }}
               />
             </div>
+            {fieldErrors.licenseNumber && <p className="text-xs text-red-500 font-medium mt-1">{fieldErrors.licenseNumber}</p>}
           </div>
 
           <div>

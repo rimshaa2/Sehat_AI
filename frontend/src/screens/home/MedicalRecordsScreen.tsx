@@ -11,7 +11,8 @@ import {
   ListRenderItem
 } from "react-native";
 import { ChevronLeft, FileText, Download, Plus, Calendar } from "lucide-react-native";
-import { fetchMedicalRecords } from '../../services/api'; // 🟢 Import API
+import { fetchMedicalRecords, getUserProfile } from '../../services/api'; // 🟢 Import API
+import { getAuth } from '@react-native-firebase/auth';
 import styles from "./styles/MedicalRecordsStyles";
 
 interface MedicalRecord {
@@ -40,9 +41,23 @@ export default ({ navigation }: { navigation: NavigationProp }) => {
   const loadRecords = async () => {
     setLoading(true);
     try {
-      const userId = 1; // 🔴 Replace with actual logged-in User ID
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        setLoading(false);
+        return;
+      }
+
+      // Fetch User Profile from Backend (using Firebase UID) to get the MySQL ID
+      const userProfile = await getUserProfile(currentUser.uid);
+      if (!userProfile || !userProfile.id) {
+        setLoading(false);
+        return;
+      }
+
+      const userId = userProfile.id;
       const data = await fetchMedicalRecords(userId);
-      
+
       // Map DB fields to UI fields if necessary
       const formattedData = data.map((item: any) => ({
         id: item.id.toString(),
@@ -68,8 +83,8 @@ export default ({ navigation }: { navigation: NavigationProp }) => {
   }, []);
 
   // 2. Filter Logic
-  const filteredRecords = selectedFilter === "All" 
-    ? records 
+  const filteredRecords = selectedFilter === "All"
+    ? records
     : records.filter(r => r.type === selectedFilter);
 
   const renderRecordItem: ListRenderItem<MedicalRecord> = ({ item }) => (
@@ -81,7 +96,7 @@ export default ({ navigation }: { navigation: NavigationProp }) => {
       <View style={styles.recordInfo}>
         <Text style={styles.recordTitle}>{item.title}</Text>
         <Text style={styles.doctorName}>{item.doctor}</Text>
-        
+
         <View style={styles.metaRow}>
           <Calendar size={12} color="#9CA3AF" style={{ marginRight: 4 }} />
           <Text style={styles.dateText}>{item.date}</Text>
@@ -123,34 +138,34 @@ export default ({ navigation }: { navigation: NavigationProp }) => {
       <View style={styles.contentSheet}>
         {/* Filters */}
         <View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersScroll}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersScroll}>
             {FILTERS.map((filter) => (
-                <TouchableOpacity 
-                key={filter} 
+              <TouchableOpacity
+                key={filter}
                 style={[styles.filterPill, selectedFilter === filter && styles.filterPillActive]}
                 onPress={() => setSelectedFilter(filter)}
-                >
+              >
                 <Text style={[styles.filterText, selectedFilter === filter && styles.filterTextActive]}>
-                    {filter}
+                  {filter}
                 </Text>
-                </TouchableOpacity>
+              </TouchableOpacity>
             ))}
-            </ScrollView>
+          </ScrollView>
         </View>
 
         {/* List */}
         {loading ? (
-            <ActivityIndicator size="large" color="#199A8E" style={{marginTop: 50}} />
+          <ActivityIndicator size="large" color="#199A8E" style={{ marginTop: 50 }} />
         ) : (
-            <FlatList
+          <FlatList
             data={filteredRecords}
             keyExtractor={(item) => item.id}
             renderItem={renderRecordItem}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={loading} onRefresh={loadRecords} />}
-            ListEmptyComponent={<Text style={{textAlign:'center', marginTop: 20, color:'#999'}}>No records found.</Text>}
-            />
+            ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 20, color: '#999' }}>No records found.</Text>}
+          />
         )}
       </View>
     </View>
