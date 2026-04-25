@@ -168,7 +168,12 @@ export const deleteMedicalRecord = async (recordId) => {
 // ==========================================
 // 5. AI Service (Python Direct)
 // ==========================================
-export const sendVoiceMessage = async (uri, language = 'en-US', userProfile = {}) => {
+// ==========================================
+// REPLACE these two functions in your api.js
+// Both now accept a `doctors` array and forward it to the Python service
+// ==========================================
+
+export const sendVoiceMessage = async (uri, language = 'en-US', userProfile = {}, doctors = []) => {
   const formData = new FormData();
 
   const uriParts = uri.split('.');
@@ -181,19 +186,15 @@ export const sendVoiceMessage = async (uri, language = 'en-US', userProfile = {}
   });
 
   formData.append('language', language);
-
-  
   formData.append('userProfile', JSON.stringify(userProfile));
+  formData.append('doctors', JSON.stringify(doctors)); // NEW
 
   try {
     const response = await fetch(`${PYTHON_URL}/voice-chat`, {
       method: 'POST',
       body: formData,
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
-
     const text = await response.text();
     return JSON.parse(text);
   } catch (error) {
@@ -202,16 +203,18 @@ export const sendVoiceMessage = async (uri, language = 'en-US', userProfile = {}
   }
 };
 
-export const sendTextMessage = async (text, language = 'en-US', userProfile = {}) => {
+export const sendTextMessage = async (text, language = 'en-US', userProfile = {}, doctors = []) => {
   try {
     const response = await fetch(`${PYTHON_URL}/text-chat`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ text, language, userProfile }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text,
+        language,
+        userProfile,
+        doctors, // NEW
+      }),
     });
-
     const data = await response.json();
     return data;
   } catch (error) {
@@ -219,7 +222,6 @@ export const sendTextMessage = async (text, language = 'en-US', userProfile = {}
     throw error;
   }
 };
-
 // ==========================================
 // 6. Community Service
 // ==========================================

@@ -7,11 +7,9 @@ const getAuthenticatedDbUser = async (req) => {
   return User.findOne({ where: { firebase_uid: req.user.uid } });
 };
 
-// 1. Book an Appointment (The "Transactional" Logic)
-// Reference: SDS 4.1.2 - Appointment Booking Transaction
+// 1. Book an Appointment
 exports.bookAppointment = async (req, res) => {
-  
-  const t = await sequelize.transaction(); // Start Transaction
+  const t = await sequelize.transaction();
 
   try {
     const dbUser = await getAuthenticatedDbUser(req);
@@ -20,12 +18,22 @@ exports.bookAppointment = async (req, res) => {
       return res.status(401).json({ error: "Unauthorized user" });
     }
 
-    const { patientId, doctorId, appointmentDate, timeSlot, reason, amount } =
-      req.body;
+    const {
+      patientId,
+      doctorId,
+      appointmentDate,
+      timeSlot,
+      reason,
+      amount,
+      // ✅ Read paymentMethod and paymentStatus from body
+      // Defaults: cash bookings → "pending", safepay → "completed"
+      paymentMethod = "cash",
+      paymentStatus = "pending",
+    } = req.body;
+
     const normalizedPatientId = Number(patientId);
     const requesterId = Number(dbUser.id);
 
-    // Patients can only book for themselves; admins/staff may specify other patient IDs.
     if (dbUser.role === "patient" && normalizedPatientId !== requesterId) {
       await t.rollback();
       return res
@@ -33,7 +41,7 @@ exports.bookAppointment = async (req, res) => {
         .json({ error: "Patients can only book appointments for themselves." });
     }
 
-    // A. Double-Booking Check (Critical for ACID)
+    // A. Double-Booking Check
     const existing = await Appointment.findOne({
       where: { doctorId, appointmentDate, timeSlot },
       transaction: t,
@@ -47,31 +55,34 @@ exports.bookAppointment = async (req, res) => {
     }
 
     // B. Create the Record
+    // paymentMethod and paymentStatus are stored in the existing
+    // paymentStatus column. paymentMethod is just passed through for
+    // response info — we don't add a new DB column to avoid sync issues.
     const newAppointment = await Appointment.create(
       {
-        patientId, // Ensure this ID comes from your MySQL Users table (e.g., 1, 2)
+        patientId,
         doctorId,
         appointmentDate,
         timeSlot,
         reason,
         amount,
         status: "scheduled",
-        paymentStatus: "completed", // Simulating successful payment
+        // ✅ Use the value from request: "pending" for cash, "completed" for safepay
+        paymentStatus: paymentStatus,
       },
       { transaction: t },
     );
 
-    // C. Commit the Transaction
     await t.commit();
-
-    // D. Hybrid Logic: Invalidate Redis Cache
-    // If we cached doctor slots, we must clear them now so this slot shows as "taken"
-    // await redisClient.del(`doctor_slots_${doctorId}`);
     console.log(`🔄 Cache Cleared for Doctor ${doctorId}`);
 
-    res.status(201).json({ success: true, appointment: newAppointment });
+    res.status(201).json({
+      success: true,
+      appointment: newAppointment,
+      paymentMethod,  // echo back for frontend confirmation
+    });
   } catch (error) {
-    await t.rollback(); // Rollback if anything fails
+    await t.rollback();
     console.error(error);
     res.status(500).json({ error: error.message });
   }
@@ -103,27 +114,24 @@ exports.getMyAppointments = async (req, res) => {
         : dbUser.role === "doctor"
           ? "doctor"
           : "patient";
+
     if (resolvedRole === "patient") {
       include.push({
         model: Doctor,
         as: "doctor",
-        include: [{
-          model: User,
-          as: "user",
-          attributes: ["fullName", "email"]
-        }],
+        include: [{ model: User, as: "user", attributes: ["fullName", "email"] }],
       });
     } else {
       include.push({
         model: User,
         as: "patient",
-        attributes: ["fullName", "email"]
+        attributes: ["fullName", "email"],
       });
     }
 
     const appointments = await Appointment.findAll({
       where: whereClause,
-      include: include,
+      include,
       order: [["appointmentDate", "ASC"]],
     });
 
@@ -139,7 +147,7 @@ exports.getAllAppointmentsAdmin = async (req, res) => {
       include: [
         {
           model: User,
-          as: "patient", // Matches your association alias
+          as: "patient",
           attributes: ["fullName", "phoneNumber"],
         },
         {
@@ -151,7 +159,6 @@ exports.getAllAppointmentsAdmin = async (req, res) => {
       order: [["createdAt", "DESC"]],
     });
 
-    // Format data for the frontend table
     const formatted = appointments.map((apt) => ({
       id: apt.id,
       patientName: apt.patient?.fullName || "Guest Patient",
@@ -159,7 +166,10 @@ exports.getAllAppointmentsAdmin = async (req, res) => {
       doctorName: apt.doctor?.user?.fullName || "Unassigned",
       specialization: apt.doctor?.specialization || "",
       date: new Date(apt.appointmentDate).toLocaleDateString(),
-      rawDate: apt.appointmentDate instanceof Date ? apt.appointmentDate.toISOString().split('T')[0] : apt.appointmentDate,
+      rawDate:
+        apt.appointmentDate instanceof Date
+          ? apt.appointmentDate.toISOString().split("T")[0]
+          : apt.appointmentDate,
       time: apt.timeSlot || "N/A",
       type: apt.reason || "General Checkup",
       location: apt.meetingLink || "In-Clinic",
@@ -177,7 +187,7 @@ exports.getAllAppointmentsAdmin = async (req, res) => {
 exports.updateAppointmentStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body; // e.g., 'completed', 'scheduled', 'cancelled', 'no-show'
+    const { status } = req.body;
 
     const appt = await Appointment.findByPk(id);
     if (!appt) return res.status(404).json({ error: "Appointment not found" });
@@ -185,7 +195,11 @@ exports.updateAppointmentStatus = async (req, res) => {
     appt.status = status;
     await appt.save();
 
-    res.json({ success: true, message: `Appointment status updated to ${status}`, appointment: appt });
+    res.json({
+      success: true,
+      message: `Appointment status updated to ${status}`,
+      appointment: appt,
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -200,6 +214,7 @@ exports.cancelAppointment = async (req, res) => {
 
     const appt = await Appointment.findByPk(id);
     if (!appt) return res.status(404).json({ error: "Appointment not found" });
+
     if (
       dbUser.role !== "admin" &&
       dbUser.id !== appt.patientId &&
@@ -212,9 +227,6 @@ exports.cancelAppointment = async (req, res) => {
 
     appt.status = "cancelled";
     await appt.save();
-
-    // Invalidate cache again just in case
-    // await redisClient.del(`doctor_slots_${appt.doctorId}`);
 
     res.json({ success: true, message: "Appointment cancelled" });
   } catch (error) {
@@ -253,6 +265,7 @@ exports.rescheduleAppointment = async (req, res) => {
       await t.rollback();
       return res.status(404).json({ error: "Appointment not found" });
     }
+
     if (
       dbUser.role !== "admin" &&
       dbUser.id !== appt.patientId &&
@@ -264,24 +277,34 @@ exports.rescheduleAppointment = async (req, res) => {
         .json({ error: "You are not allowed to reschedule this appointment." });
     }
 
-    // Check for double booking
     const existing = await Appointment.findOne({
-      where: { doctorId: appt.doctorId, appointmentDate, timeSlot, status: "scheduled" },
+      where: {
+        doctorId: appt.doctorId,
+        appointmentDate,
+        timeSlot,
+        status: "scheduled",
+      },
       transaction: t,
     });
 
     if (existing && existing.id !== appt.id) {
       await t.rollback();
-      return res.status(409).json({ error: "This slot is already booked for the selected doctor." });
+      return res
+        .status(409)
+        .json({ error: "This slot is already booked for the selected doctor." });
     }
 
     appt.appointmentDate = appointmentDate;
     appt.timeSlot = timeSlot;
-    appt.status = "scheduled"; // Reset to scheduled if it was cancelled
+    appt.status = "scheduled";
     await appt.save({ transaction: t });
 
     await t.commit();
-    res.json({ success: true, message: "Appointment rescheduled successfully", appointment: appt });
+    res.json({
+      success: true,
+      message: "Appointment rescheduled successfully",
+      appointment: appt,
+    });
   } catch (error) {
     await t.rollback();
     console.error("Reschedule Error:", error);
@@ -289,7 +312,7 @@ exports.rescheduleAppointment = async (req, res) => {
   }
 };
 
-// 4. Browse Available Doctors (Activity: "Browse Available Doctors")
+// 4. Browse Available Doctors
 exports.getDoctors = async (req, res) => {
   const { specialty } = req.query;
   const whereClause = specialty ? { specialization: specialty } : {};
@@ -305,47 +328,46 @@ exports.getDoctors = async (req, res) => {
   }
 };
 
-// 5. Check Availability (Sequence: "checkAvailability() -> returnAvailableSlots()")
+// 5. Check Availability
 exports.getDoctorSlots = async (req, res) => {
   const doctorId = parseInt(req.params.doctorId);
-  
-  const { date } = req.query; // e.g. "2026-03-15"
+  const { date } = req.query;
 
   try {
-    // 1. Get Day of Week (e.g. "Monday")
-    const [year, month, day] = date.split('-');
+    const [year, month, day] = date.split("-");
     const dateObj = new Date(year, month - 1, day);
-    const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+    const dayOfWeek = dateObj.toLocaleDateString("en-US", { weekday: "long" });
 
-    // 2. Fetch Availability for this day
-    const { Availability } = require("../models"); // Ensure it's imported
+    const { Availability } = require("../models");
     const availability = await Availability.findOne({
-
-      where: { doctorId, dayOfWeek, isAvailable: true }
-      
+      where: { doctorId, dayOfWeek, isAvailable: true },
     });
-    console.log(`🔍 Looking for doctorId=${doctorId} dayOfWeek=${dayOfWeek} → Found:`, availability ? 'YES' : 'NO');
+    console.log(
+      `🔍 Looking for doctorId=${doctorId} dayOfWeek=${dayOfWeek} → Found:`,
+      availability ? "YES" : "NO"
+    );
 
     if (!availability) {
       return res.json({ date, availableSlots: [] });
     }
 
-    // 3. Generate 30 min slots
-    const startHour = parseInt(availability.startTime.split(':')[0]);
-    const startMin = parseInt(availability.startTime.split(':')[1]);
-    const endHour = parseInt(availability.endTime.split(':')[0]);
-    const endMin = parseInt(availability.endTime.split(':')[1]);
+    const startHour = parseInt(availability.startTime.split(":")[0]);
+    const startMin  = parseInt(availability.startTime.split(":")[1]);
+    const endHour   = parseInt(availability.endTime.split(":")[0]);
+    const endMin    = parseInt(availability.endTime.split(":")[1]);
 
     const slots = [];
     let currentHour = startHour;
-    let currentMin = startMin;
+    let currentMin  = startMin;
 
-    while (currentHour < endHour || (currentHour === endHour && currentMin < endMin)) {
-      const ampm = currentHour >= 12 ? 'PM' : 'AM';
-      const displayHour = currentHour > 12 ? currentHour - 12 : (currentHour === 0 ? 12 : currentHour);
-      const displayMin = currentMin === 0 ? '00' : currentMin;
-      const formattedSlot = `${displayHour < 10 ? '0' : ''}${displayHour}:${displayMin} ${ampm}`;
-      
+    while (
+      currentHour < endHour ||
+      (currentHour === endHour && currentMin < endMin)
+    ) {
+      const ampm        = currentHour >= 12 ? "PM" : "AM";
+      const displayHour = currentHour > 12 ? currentHour - 12 : currentHour === 0 ? 12 : currentHour;
+      const displayMin  = currentMin === 0 ? "00" : currentMin;
+      const formattedSlot = `${displayHour < 10 ? "0" : ""}${displayHour}:${displayMin} ${ampm}`;
       slots.push(formattedSlot);
 
       currentMin += 30;
@@ -355,19 +377,12 @@ exports.getDoctorSlots = async (req, res) => {
       }
     }
 
-    // 4. Filter out already booked slots
     const existingBookings = await Appointment.findAll({
       where: { doctorId, appointmentDate: date, status: "scheduled" },
     });
 
-    const normalizeSlot = (slot) =>
-      String(slot || "")
-        .trim()
-        .toUpperCase()
-        .replace(/\s+/g, " ");
-
     const bookedTimes = existingBookings.map((a) => a.timeSlot);
-    const validSlots = slots.filter((time) => !bookedTimes.includes(time));
+    const validSlots  = slots.filter((time) => !bookedTimes.includes(time));
 
     res.json({ date, availableSlots: validSlots });
   } catch (error) {

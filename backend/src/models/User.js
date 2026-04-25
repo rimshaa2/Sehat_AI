@@ -69,6 +69,23 @@ const User = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: true, // e.g. "Penicillin, Peanuts"
     },
+    // ── Extended Health Fields ──────────────────────────────────────────────
+    dateOfBirth: {
+      type: DataTypes.DATEONLY,
+      allowNull: true,
+    },
+    weight: {
+      type: DataTypes.FLOAT,  // in kg
+      allowNull: true,
+    },
+    height: {
+      type: DataTypes.FLOAT,  // in cm
+      allowNull: true,
+    },
+    emergencyContact: {
+      type: DataTypes.STRING,
+      allowNull: true,  // e.g. "Ali Khan — 0300-1234567"
+    },
     profilePicture: {
       type: DataTypes.STRING,
       allowNull: true,

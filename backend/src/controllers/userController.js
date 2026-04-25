@@ -151,24 +151,39 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
+
 // 4. Update User Profile
 exports.updateUserProfile = async (req, res) => {
   const { uid } = req.params;
-  const { fullName, phoneNumber, notificationsEnabled, preferredLanguage } = req.body;
+  const {
+    fullName, phoneNumber, notificationsEnabled, preferredLanguage,
+    age, gender, bloodType, medicalHistory, allergies,
+    dateOfBirth, weight, height, emergencyContact,
+  } = req.body;
+
+  // Safe number parsers — return null instead of NaN on bad input
+  const safeInt   = (v) => { const n = parseInt(v,   10); return isNaN(n) ? null : n; };
+  const safeFloat = (v) => { const n = parseFloat(v);     return isNaN(n) ? null : n; };
 
   try {
     const user = await User.findOne({ where: { firebase_uid: uid } });
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     await user.update({
-      fullName: fullName || user.fullName,
-      phoneNumber: phoneNumber !== undefined ? phoneNumber : user.phoneNumber,
-      notificationsEnabled:
-        notificationsEnabled !== undefined
-          ? Boolean(notificationsEnabled)
-          : user.notificationsEnabled,
-      preferredLanguage:
-        preferredLanguage !== undefined ? preferredLanguage : user.preferredLanguage,
+      fullName:             fullName             ?? user.fullName,
+      phoneNumber:          phoneNumber          !== undefined ? phoneNumber                   : user.phoneNumber,
+      notificationsEnabled: notificationsEnabled !== undefined ? Boolean(notificationsEnabled) : user.notificationsEnabled,
+      preferredLanguage:    preferredLanguage    ?? user.preferredLanguage,
+      // Health profile — all nullable, never block login
+      age:                  age                  !== undefined ? safeInt(age)                  : user.age,
+      gender:               gender               !== undefined ? (gender || null)              : user.gender,
+      bloodType:            bloodType            !== undefined ? (bloodType || null)            : user.bloodType,
+      medicalHistory:       medicalHistory       !== undefined ? medicalHistory                : user.medicalHistory,
+      allergies:            allergies            !== undefined ? allergies                     : user.allergies,
+      dateOfBirth:          dateOfBirth          !== undefined ? (dateOfBirth || null)         : user.dateOfBirth,
+      weight:               weight               !== undefined ? safeFloat(weight)             : user.weight,
+      height:               height               !== undefined ? safeFloat(height)             : user.height,
+      emergencyContact:     emergencyContact     !== undefined ? emergencyContact              : user.emergencyContact,
     });
 
     res.json({ success: true, user });
