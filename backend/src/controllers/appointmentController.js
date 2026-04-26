@@ -1,5 +1,6 @@
 const { Appointment, Doctor, User, sequelize } = require("../models");
 const { redisClient } = require("../config/database");
+const { sendPatientConfirmation, sendDoctorNotification } = require('../services/emailService');
 
 const getAuthenticatedDbUser = async (req) => {
   if (req.dbUser) return req.dbUser;
