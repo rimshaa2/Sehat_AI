@@ -86,8 +86,16 @@ const OtpScreen: React.FC<Props> = ({ navigation, route }) => {
         Alert.alert("Error", "Invalid code. Please check your SMS.");
       } else if (err.code === "auth/session-expired") {
         Alert.alert("Error", "Code expired. Please request a new one.");
+      } else if (err.message && err.message.includes("Network Error")) {
+        Alert.alert("Error", "Network Error. Cannot connect to server.");
+      } else if (err.response && err.response.data && err.response.data.error) {
+        Alert.alert(
+          "Error",
+          `${err.response.data.error}\nDetails: ${err.response.data.details || "None"}`
+        );
       } else {
-        Alert.alert("Error", "Verification failed. Please try again.");
+        const errorMsg = err.message || "Verification failed. Please try again.";
+        Alert.alert("Error", errorMsg);
       }
     }
   };

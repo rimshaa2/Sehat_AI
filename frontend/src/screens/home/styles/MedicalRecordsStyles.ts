@@ -23,6 +23,11 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 4,
   },
+  addHeaderBtn: {
+    backgroundColor: "rgba(255,255,255,0.25)",
+    borderRadius: 20,
+    padding: 6,
+  },
 
   // Summary Cards (Total Records, Last Updated)
   summaryContainer: {

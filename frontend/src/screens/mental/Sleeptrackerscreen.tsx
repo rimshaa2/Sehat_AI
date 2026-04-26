@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -8,8 +8,9 @@ import {
   SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { createWellnessEntry, getWellnessEntries } from "../../services/api";
 
-const SLEEP_HISTORY = [
+const DEFAULT_SLEEP_HISTORY = [
   { day: "Mon", hours: 7.5, quality: 4, bedtime: "10:30 PM", wake: "6:00 AM" },
   { day: "Tue", hours: 5.0, quality: 2, bedtime: "1:00 AM",  wake: "6:00 AM" },
   { day: "Wed", hours: 8.0, quality: 5, bedtime: "10:00 PM", wake: "6:00 AM" },
@@ -49,13 +50,35 @@ function SleepTrackerScreen({ navigation }: { navigation: any }) {
   const [selectedBedtime, setSelectedBedtime] = useState<string | null>(null);
   const [selectedWake, setSelectedWake]   = useState<string | null>(null);
   const [saved, setSaved]                 = useState(false);
+  const [sleepHistory, setSleepHistory]   = useState(DEFAULT_SLEEP_HISTORY);
+
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        const entries = await getWellnessEntries("sleep", 50);
+        if (!Array.isArray(entries) || entries.length === 0) return;
+        const mapped = entries
+          .map((entry: any) => entry.payload)
+          .filter((p: any) => p?.day && p?.hours && p?.quality)
+          .slice(0, 7);
+        if (mapped.length > 0) setSleepHistory(mapped);
+      } catch (error) {
+        console.warn("Sleep history fetch failed:", error);
+      }
+    };
+    loadHistory();
+  }, []);
 
   const avgHours = (
-    SLEEP_HISTORY.reduce((a, b) => a + b.hours, 0) / SLEEP_HISTORY.length
+    sleepHistory.length
+      ? sleepHistory.reduce((a, b) => a + b.hours, 0) / sleepHistory.length
+      : 0
   ).toFixed(1);
 
   const avgQuality = (
-    SLEEP_HISTORY.reduce((a, b) => a + b.quality, 0) / SLEEP_HISTORY.length
+    sleepHistory.length
+      ? sleepHistory.reduce((a, b) => a + b.quality, 0) / sleepHistory.length
+      : 0
   ).toFixed(1);
 
   const calcHours = () => {
@@ -66,8 +89,21 @@ function SleepTrackerScreen({ navigation }: { navigation: any }) {
     return Math.min(hours, 12).toFixed(1);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedQuality || !selectedBedtime || !selectedWake) return;
+    const payload = {
+      day: new Date().toLocaleDateString("en-US", { weekday: "short" }),
+      hours: Number(calcHours() || 0),
+      quality: selectedQuality,
+      bedtime: selectedBedtime,
+      wake: selectedWake,
+    };
+    try {
+      await createWellnessEntry("sleep", payload);
+      setSleepHistory((prev) => [payload, ...prev].slice(0, 7));
+    } catch (error) {
+      console.warn("Save sleep failed:", error);
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -237,7 +273,7 @@ function SleepTrackerScreen({ navigation }: { navigation: any }) {
                 <View style={styles.summaryDivider} />
                 <View style={styles.summaryItem}>
                   <Text style={styles.summaryValue}>
-                    {SLEEP_HISTORY.filter((d) => d.hours >= 7).length}
+                    {sleepHistory.filter((d) => d.hours >= 7).length}
                   </Text>
                   <Text style={styles.summaryLabel}>Good Nights</Text>
                 </View>
@@ -248,7 +284,7 @@ function SleepTrackerScreen({ navigation }: { navigation: any }) {
             <View style={styles.card}>
               <Text style={styles.cardTitle}>This Week — Hours Slept</Text>
               <View style={styles.graph}>
-                {SLEEP_HISTORY.map((d, i) => {
+                {sleepHistory.map((d, i) => {
                   const barH = (d.hours / MAX_HOURS) * 120;
                   const color = d.hours >= 7 ? "#5BA89D" : d.hours >= 6 ? "#FFA726" : "#EF5350";
                   return (
@@ -272,7 +308,7 @@ function SleepTrackerScreen({ navigation }: { navigation: any }) {
             {/* Log List */}
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Sleep Log</Text>
-              {SLEEP_HISTORY.map((d, i) => (
+              {sleepHistory.map((d, i) => (
                 <View key={i} style={styles.logRow}>
                   <View style={[styles.logHourCircle, {
                     backgroundColor: d.hours >= 7 ? "#5BA89D" : d.hours >= 6 ? "#FFA726" : "#EF5350",

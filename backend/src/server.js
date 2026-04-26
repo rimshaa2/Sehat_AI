@@ -2,7 +2,7 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const { connectDB } = require("./config/database");
-const { sequelize, User, Doctor, Appointment } = require("./models/index");
+const { sequelize } = require("./models/index");
 require("dotenv").config();
 
 const userRoutes = require("./routes/userRoutes");
@@ -11,6 +11,9 @@ const appointmentRoutes = require("./routes/appointmentRoutes");
 const aiRoutes = require("./routes/aiRoutes");
 const medicalRecordRoutes = require("./routes/medicalRecordRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const communityRoutes = require("./routes/communityRoutes");
+const medicineRoutes = require("./routes/medicineRoutes");
+const wellnessRoutes = require("./routes/wellnessRoutes");
 const seedAdmin = require("./scripts/seedAdmin");
 
 const app = express();
@@ -28,8 +31,9 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(express.json());
 const allowedOrigins = [
-  "http://localhost:5173", // Vite default port
-  "https://your-admin-panel.vercel.app", // Future deployment
+  "http://localhost:5173",
+  "http://192.168.1.13:5173",
+  "https://your-admin-panel.vercel.app",
 ];
 app.use(
   cors({
@@ -86,6 +90,9 @@ app.use("/api/appointments", appointmentRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/records", medicalRecordRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/community", communityRoutes);
+app.use("/api/medicines", medicineRoutes);
+app.use("/api/wellness", wellnessRoutes);
 
 // REAL-TIME EMERGENCY SOCKET LOGIC
 io.on("connection", (socket) => {
@@ -150,9 +157,9 @@ const startServer = async () => {
     await connectDB();
     console.log("✅ Database connected");
 
-    // 2. THIS IS THE MISSING PART: Create/Update tables
-    // 'alter: true' checks current tables and adds missing columns/tables without deleting data
-    await sequelize.sync({ alter: true });
+    // 2. Safe sync: create missing tables only (no ALTER on existing schema).
+    // This avoids repeated index mutations on Users that caused ER_TOO_MANY_KEYS.
+    await sequelize.sync();
     await seedAdmin(); // Ensure admin user exists on startup
     console.log("✅ Database Tables Synced (Users, Doctors, Appointments)");
   } catch (dbError) {

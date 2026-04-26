@@ -1,7 +1,7 @@
-require('dotenv').config();
-const { Sequelize } = require('sequelize');
-const { createClient } = require('redis');
-const admin = require('./firebase');
+require("dotenv").config();
+const { Sequelize } = require("sequelize");
+const { createClient } = require("redis");
+const admin = require("./firebase");
 
 // 1. MySQL Connection - Support both Railway and Local
 let sequelize;
@@ -9,27 +9,27 @@ let sequelize;
 if (process.env.DATABASE_URL) {
   // Railway provides DATABASE_URL for MySQL
   sequelize = new Sequelize(process.env.DATABASE_URL, {
-    dialect: 'mysql',
+    dialect: "mysql",
     logging: false,
     dialectOptions: {
       ssl: {
         require: true,
-        rejectUnauthorized: false
-      }
-    }
+        rejectUnauthorized: false,
+      },
+    },
   });
 } else {
   // Local development
   sequelize = new Sequelize(
-    process.env.DB_NAME || 'sehat_ai',
-    process.env.DB_USER || 'root',
-    process.env.DB_PASS || '',
+    process.env.DB_NAME || "sehat_ai_db",
+    process.env.DB_USER || "root",
+    process.env.DB_PASS || "",
     {
-      host: process.env.DB_HOST || 'localhost',
+      host: process.env.DB_HOST || "localhost",
       port: process.env.DB_PORT || 3308,
-      dialect: 'mysql',
+      dialect: "mysql",
       logging: false,
-    }
+    },
   );
 }
 
@@ -39,8 +39,8 @@ if (process.env.DATABASE_URL) {
 // if (process.env.REDIS_URL) {
 //   // Railway Redis uses rediss:// (with SSL)
 //   const redisUrl = process.env.REDIS_URL;
-  
-//   redisClient = createClient({ 
+
+//   redisClient = createClient({
 //     url: redisUrl,
 //     socket: {
 //       // Only enable TLS if using rediss:// protocol
@@ -70,21 +70,17 @@ const getFirestore = () => {
 
 const connectDB = async () => {
   const errors = [];
-  
+
   try {
     // MySQL Connection
     try {
       await sequelize.authenticate();
-      console.log('✅ MySQL Connected');
-      
-      // Only sync in non-production or if flag is set
-      if (process.env.NODE_ENV !== 'production' || process.env.FORCE_SYNC === 'true') {
-        await sequelize.sync({ alter: true });
-        console.log('✅ SQL Models Synced');
-      }
+      console.log("✅ MySQL Connected");
+
+      // Sync is handled centrally in server startup to avoid duplicate ALTER runs.
     } catch (mysqlError) {
       errors.push(`MySQL: ${mysqlError.message}`);
-      console.warn('⚠️ MySQL connection failed:', mysqlError.message);
+      console.warn("⚠️ MySQL connection failed:", mysqlError.message);
     }
 
     // Redis Connection
@@ -102,18 +98,19 @@ const connectDB = async () => {
     try {
       const firestore = getFirestore();
       if (firestore) {
-        console.log('✅ Firestore available');
+        console.log("✅ Firestore available");
       }
     } catch (firestoreError) {
-      console.warn('⚠️ Firestore not available:', firestoreError.message);
+      console.warn("⚠️ Firestore not available:", firestoreError.message);
     }
 
     if (errors.length > 0) {
-      console.warn(`⚠️ Some connections failed, but server will start. Errors: ${errors.join(', ')}`);
+      console.warn(
+        `⚠️ Some connections failed, but server will start. Errors: ${errors.join(", ")}`,
+      );
     }
-
   } catch (error) {
-    console.error('❌ Unexpected error in connectDB:', error.message);
+    console.error("❌ Unexpected error in connectDB:", error.message);
     // Don't exit - let server start anyway
   }
 };

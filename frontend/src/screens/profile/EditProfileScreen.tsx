@@ -11,10 +11,10 @@ import {
   TouchableWithoutFeedback,
   ScrollView,
 } from "react-native";
-import { ChevronLeft, User, Mail, Phone } from "lucide-react-native";
-import { getAuth } from "@react-native-firebase/auth";
-import { updateUserProfile } from "../../services/api";
+import { ChevronLeft } from "lucide-react-native";
+import { getAuth, updateProfile } from "@react-native-firebase/auth";
 import styles from "./styles/EditProfileStyles";
+import { updateUserProfile } from "../../services/api";
 
 export default ({ navigation, route }: any) => {
   const { userData } = route.params || {};
@@ -38,10 +38,15 @@ export default ({ navigation, route }: any) => {
       const user = auth.currentUser;
 
       if (user) {
-        // Save to Railway backend
+        // 1. Update Firebase Auth Profile (DisplayName)
+        await updateProfile(user, {
+          displayName: fullName,
+        });
+
+        // 2. Update backend profile (MySQL)
         await updateUserProfile(user.uid, {
-          fullName: fullName.trim(),
-          phoneNumber: phone.trim(),
+          fullName: fullName,
+          phoneNumber: phone,
         });
 
         Alert.alert("Success", "Profile updated successfully!", [
@@ -61,13 +66,19 @@ export default ({ navigation, route }: any) => {
       <SafeAreaView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+          >
             <ChevronLeft color="#1C2A3A" size={24} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit Profile</Text>
         </View>
 
-        <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Form */}
           <View style={styles.formContainer}>
             {/* Name Field */}

@@ -49,8 +49,8 @@ export const ScheduleManagement = () => {
           from: "09:00",
           to: "17:00",
         },
-      ])
-    )
+      ]),
+    ),
   );
 
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([
@@ -157,13 +157,15 @@ export const ScheduleManagement = () => {
 
   // Calculate quick stats
   const activeDays = Object.values(weeklySchedule).filter(
-    (d) => d.enabled
+    (d) => d.enabled,
   ).length;
   const totalHours = Object.values(weeklySchedule)
     .filter((d) => d.enabled)
     .reduce((sum, d) => {
-      const from = parseInt(d.from.split(":")[0]) + parseInt(d.from.split(":")[1]) / 60;
-      const to = parseInt(d.to.split(":")[0]) + parseInt(d.to.split(":")[1]) / 60;
+      const from =
+        parseInt(d.from.split(":")[0]) + parseInt(d.from.split(":")[1]) / 60;
+      const to =
+        parseInt(d.to.split(":")[0]) + parseInt(d.to.split(":")[1]) / 60;
       return sum + Math.max(0, to - from);
     }, 0);
 
@@ -182,10 +184,11 @@ export const ScheduleManagement = () => {
         <button
           onClick={handleSave}
           disabled={saving || loading}
-          className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold shadow-lg transition-all active:scale-95 disabled:opacity-70 ${saveSuccess
+          className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold shadow-lg transition-all active:scale-95 disabled:opacity-70 ${
+            saveSuccess
               ? "bg-emerald-500 text-white shadow-emerald-100"
               : "bg-[#199A8E] text-white shadow-emerald-100 hover:bg-[#15857a]"
-            }`}
+          }`}
         >
           {saving ? (
             <>
@@ -235,10 +238,11 @@ export const ScheduleManagement = () => {
                 return (
                   <div
                     key={day}
-                    className={`group flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-4 rounded-2xl border transition-all duration-200 ${schedule.enabled
+                    className={`group flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-4 rounded-2xl border transition-all duration-200 ${
+                      schedule.enabled
                         ? "bg-white border-slate-200 hover:border-[#199A8E]/30 hover:shadow-sm"
                         : "bg-slate-50/50 border-slate-100"
-                      }`}
+                    }`}
                   >
                     {/* Toggle + Day Name */}
                     <div className="flex items-center gap-3 min-w-[160px]">
@@ -253,17 +257,13 @@ export const ScheduleManagement = () => {
                             fill="#199A8E"
                           />
                         ) : (
-                          <ToggleLeft
-                            size={32}
-                            className="text-slate-300"
-                          />
+                          <ToggleLeft size={32} className="text-slate-300" />
                         )}
                       </button>
                       <span
-                        className={`text-sm font-bold ${schedule.enabled
-                            ? "text-slate-900"
-                            : "text-slate-400"
-                          }`}
+                        className={`text-sm font-bold ${
+                          schedule.enabled ? "text-slate-900" : "text-slate-400"
+                        }`}
                       >
                         {day}
                       </span>
@@ -393,7 +393,7 @@ export const ScheduleManagement = () => {
                               month: "short",
                               day: "numeric",
                               year: "numeric",
-                            }
+                            },
                           )}
                         </p>
                         <p className="text-[11px] text-slate-500 truncate">
@@ -446,10 +446,11 @@ export const ScheduleManagement = () => {
                     <button
                       key={val}
                       onClick={() => setAppointmentDuration(val)}
-                      className={`py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${appointmentDuration === val
+                      className={`py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
+                        appointmentDuration === val
                           ? "bg-[#199A8E] text-white shadow-md shadow-[#199A8E]/20"
                           : "bg-slate-50 text-slate-600 border border-slate-200 hover:border-[#199A8E]/30"
-                        }`}
+                      }`}
                     >
                       {val} min
                     </button>
@@ -472,10 +473,11 @@ export const ScheduleManagement = () => {
                     <button
                       key={val}
                       onClick={() => setBufferTime(val)}
-                      className={`py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${bufferTime === val
+                      className={`py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
+                        bufferTime === val
                           ? "bg-[#199A8E] text-white shadow-md shadow-[#199A8E]/20"
                           : "bg-slate-50 text-slate-600 border border-slate-200 hover:border-[#199A8E]/30"
-                        }`}
+                      }`}
                     >
                       {val}m
                     </button>
@@ -561,11 +563,11 @@ export const ScheduleManagement = () => {
                   value:
                     appointmentDuration !== "0"
                       ? Math.floor(
-                        (totalHours / activeDays || 0) *
-                        (60 /
-                          (parseInt(appointmentDuration) +
-                            parseInt(bufferTime)))
-                      ).toString()
+                          (totalHours / activeDays || 0) *
+                            (60 /
+                              (parseInt(appointmentDuration) +
+                                parseInt(bufferTime))),
+                        ).toString()
                       : "0",
                   color: "text-amber-600",
                 },
@@ -589,10 +591,11 @@ export const ScheduleManagement = () => {
                   {DAYS.map((day) => (
                     <div
                       key={day}
-                      className={`h-2 flex-1 rounded-full transition-colors ${weeklySchedule[day].enabled
+                      className={`h-2 flex-1 rounded-full transition-colors ${
+                        weeklySchedule[day].enabled
                           ? "bg-[#199A8E]"
                           : "bg-slate-200"
-                        }`}
+                      }`}
                       title={day}
                     />
                   ))}
@@ -617,9 +620,7 @@ export const ScheduleManagement = () => {
                 className="text-blue-500 flex-shrink-0 mt-0.5"
               />
               <div>
-                <p className="text-sm font-bold text-blue-900">
-                  Schedule Tip
-                </p>
+                <p className="text-sm font-bold text-blue-900">Schedule Tip</p>
                 <p className="text-xs text-blue-700/70 mt-1 leading-relaxed">
                   Keep buffer time between appointments to allow for notes and
                   preparation. A 10-minute buffer is recommended for most

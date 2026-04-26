@@ -8,6 +8,7 @@ import {
   SafeAreaView,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import BottomNavBar from "../../components/BottomNavBar";
 
 const MOODS = [
   { emoji: "😊", label: "Happy" },
@@ -116,6 +117,7 @@ function MentalHealthScreen({ navigation }: { navigation: any }) {
         </TouchableOpacity>
 
       </ScrollView>
+      <BottomNavBar navigation={navigation} />
     </SafeAreaView>
   );
 }

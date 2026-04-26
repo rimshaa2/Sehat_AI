@@ -10,9 +10,11 @@ import PhoneNumberScreen from "../screens/auth/PhoneNumberScreen";
 import OtpScreen from "../screens/auth/OtpScreen";
 import RegisterScreen from "../screens/auth/RegisterScreen";
 import LoginScreen from "../screens/auth/LoginScreen";
+import ForgotPasswordScreen from "../screens/auth/ForgotPasswordScreen";
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 import HomeScreen from "../screens/dashboard/HomeScreen";
+import AppointmentsScreen from "../screens/appointment/AppointmentsScreen";
 
 // ── Mental Health — Hub & Utility ─────────────────────────────────────────────
 import MentalHealthScreen from "../screens/mental/MentalHealthScreen";
@@ -41,12 +43,12 @@ import BookAppointmentScreen from "../screens/appointment/BookAppointmentScreen"
 import DoctorListScreen from "../screens/appointment/DoctorListScreen";
 import DoctorDetailsScreen from "../screens/appointment/DoctorDetailsScreen";
 import PaymentScreen from "../screens/appointment/PaymentScreen";
+import PaymentMethodScreen from "../screens/appointment/PaymentMethodScreen";
 
 import BookingSuccessScreen from "../screens/appointment/BookingSuccessScreen";
 
 import AppointmentDetailsScreen from "../screens/appointment/AppointmentDetailsScreen";
 import RescheduleAppointmentScreen from "../screens/appointment/RescheduleAppointmentScreen";
-import MyAppointmentsScreen from "../screens/appointment/MyAppointmentsScreen";
 
 // ── Profile ───────────────────────────────────────────────────────────────────
 import ProfileScreen from "../screens/profile/ProfileScreen";
@@ -61,23 +63,30 @@ import RefillManagerScreen from "../screens/log medicine/RefillManagerScreen";
 // ── Other ─────────────────────────────────────────────────────────────────────
 import AiAssistantScreen from "../screens/chatbot/AiAssistantScreen";
 import MedicalRecordsScreen from "../screens/home/MedicalRecordsScreen";
+import MedicalRecordDetailScreen from "../screens/home/MedicalRecordsDetailScreen";
+import AddMedicalRecordScreen from "../screens/home/AddMedicalRecordScreen";
+import HealthArticlesScreen from "../screens/home/HealthArticlesScreen";
+import EmergencyScreen from "../screens/emergency/EmergencyScreen";
+import SettingsScreen from "../screens/settings/SettingsScreen";
+import CommunityScreen from "../screens/community/CommunityScreen";
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
 const AppNavigator = () => {
   return (
-
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-
       {/* ── Auth ── */}
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="PhoneNumber" component={PhoneNumberScreen} />
       <Stack.Screen name="Otp" component={OtpScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
 
       {/* ── Dashboard ── */}
       <Stack.Screen name="Home" component={HomeScreen} />
+      <Stack.Screen name="Appointments" component={AppointmentsScreen} />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
 
       {/* ── Mental Health — Hub ── */}
       <Stack.Screen name="MentalHealth" component={MentalHealthScreen} />
@@ -106,10 +115,16 @@ const AppNavigator = () => {
       <Stack.Screen name="DoctorList" component={DoctorListScreen} />
       <Stack.Screen name="DoctorDetails" component={DoctorDetailsScreen} />
       <Stack.Screen name="Payment" component={PaymentScreen} />
+      <Stack.Screen name="PaymentMethod" component={PaymentMethodScreen} />
       <Stack.Screen name="BookingSuccess" component={BookingSuccessScreen} />
-      <Stack.Screen name="AppointmentDetails" component={AppointmentDetailsScreen} />
-      <Stack.Screen name="RescheduleAppointment" component={RescheduleAppointmentScreen} />
-      <Stack.Screen name="MyAppointments" component={MyAppointmentsScreen} />
+      <Stack.Screen
+        name="AppointmentDetails"
+        component={AppointmentDetailsScreen}
+      />
+      <Stack.Screen
+        name="RescheduleAppointment"
+        component={RescheduleAppointmentScreen}
+      />
 
       {/* ── Profile ── */}
       <Stack.Screen name="Profile" component={ProfileScreen} />
@@ -118,15 +133,27 @@ const AppNavigator = () => {
       {/* ── Other ── */}
       <Stack.Screen name="AiAssistant" component={AiAssistantScreen} />
       <Stack.Screen name="MedicalRecords" component={MedicalRecordsScreen} />
+      <Stack.Screen
+        name="MedicalRecordDetail"
+        component={MedicalRecordDetailScreen}
+      />
+      <Stack.Screen
+        name="AddMedicalRecord"
+        component={AddMedicalRecordScreen}
+      />
+      <Stack.Screen name="HealthArticles" component={HealthArticlesScreen} />
+      <Stack.Screen name="Community" component={CommunityScreen} />
       {/* ── Medicine Tracker ── */}
 
-      <Stack.Screen name="MedicineDashboard" component={MedicineDashboardScreen} />
+      <Stack.Screen
+        name="MedicineDashboard"
+        component={MedicineDashboardScreen}
+      />
       <Stack.Screen name="AddMedicine" component={AddMedicineScreen} />
       <Stack.Screen name="MedicineDetail" component={MedicineDetailScreen} />
       <Stack.Screen name="RefillManager" component={RefillManagerScreen} />
-
+      <Stack.Screen name="Emergency" component={EmergencyScreen} />
     </Stack.Navigator>
-
   );
 };
 

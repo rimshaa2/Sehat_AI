@@ -1,14 +1,37 @@
 const { Appointment, Doctor, User, sequelize } = require("../models");
 const { redisClient } = require("../config/database");
 
+const getAuthenticatedDbUser = async (req) => {
+  if (req.dbUser) return req.dbUser;
+  if (!req.user?.uid) return null;
+  return User.findOne({ where: { firebase_uid: req.user.uid } });
+};
+
 // 1. Book an Appointment (The "Transactional" Logic)
 // Reference: SDS 4.1.2 - Appointment Booking Transaction
 exports.bookAppointment = async (req, res) => {
+  
   const t = await sequelize.transaction(); // Start Transaction
 
   try {
+    const dbUser = await getAuthenticatedDbUser(req);
+    if (!dbUser) {
+      await t.rollback();
+      return res.status(401).json({ error: "Unauthorized user" });
+    }
+
     const { patientId, doctorId, appointmentDate, timeSlot, reason, amount } =
       req.body;
+    const normalizedPatientId = Number(patientId);
+    const requesterId = Number(dbUser.id);
+
+    // Patients can only book for themselves; admins/staff may specify other patient IDs.
+    if (dbUser.role === "patient" && normalizedPatientId !== requesterId) {
+      await t.rollback();
+      return res
+        .status(403)
+        .json({ error: "Patients can only book appointments for themselves." });
+    }
 
     // A. Double-Booking Check (Critical for ACID)
     const existing = await Appointment.findOne({
@@ -57,14 +80,30 @@ exports.bookAppointment = async (req, res) => {
 // 2. Get My Appointments (Role Aware)
 exports.getMyAppointments = async (req, res) => {
   try {
-    const { userId, role } = req.query; // Pass these from frontend (or auth middleware)
+    const dbUser = await getAuthenticatedDbUser(req);
+    if (!dbUser) return res.status(401).json({ error: "Unauthorized user" });
+    const { userId, role } = req.query;
 
     const whereClause = {};
-    if (role === "patient") whereClause.patientId = userId;
-    else if (role === "doctor") whereClause.doctorId = userId;
+    const requestedId = Number(userId);
+
+    if (dbUser.role === "admin") {
+      if (role === "patient") whereClause.patientId = requestedId;
+      else if (role === "doctor") whereClause.doctorId = requestedId;
+    } else if (dbUser.role === "doctor") {
+      whereClause.doctorId = dbUser.id;
+    } else {
+      whereClause.patientId = dbUser.id;
+    }
 
     const include = [];
-    if (role === "patient") {
+    const resolvedRole =
+      dbUser.role === "admin"
+        ? role || "patient"
+        : dbUser.role === "doctor"
+          ? "doctor"
+          : "patient";
+    if (resolvedRole === "patient") {
       include.push({
         model: Doctor,
         as: "doctor",
@@ -156,9 +195,20 @@ exports.updateAppointmentStatus = async (req, res) => {
 exports.cancelAppointment = async (req, res) => {
   try {
     const { id } = req.params;
+    const dbUser = await getAuthenticatedDbUser(req);
+    if (!dbUser) return res.status(401).json({ error: "Unauthorized user" });
 
     const appt = await Appointment.findByPk(id);
     if (!appt) return res.status(404).json({ error: "Appointment not found" });
+    if (
+      dbUser.role !== "admin" &&
+      dbUser.id !== appt.patientId &&
+      dbUser.id !== appt.doctorId
+    ) {
+      return res
+        .status(403)
+        .json({ error: "You are not allowed to cancel this appointment." });
+    }
 
     appt.status = "cancelled";
     await appt.save();
@@ -192,11 +242,26 @@ exports.rescheduleAppointment = async (req, res) => {
   try {
     const { id } = req.params;
     const { appointmentDate, timeSlot } = req.body;
+    const dbUser = await getAuthenticatedDbUser(req);
+    if (!dbUser) {
+      await t.rollback();
+      return res.status(401).json({ error: "Unauthorized user" });
+    }
 
     const appt = await Appointment.findByPk(id, { transaction: t });
     if (!appt) {
       await t.rollback();
       return res.status(404).json({ error: "Appointment not found" });
+    }
+    if (
+      dbUser.role !== "admin" &&
+      dbUser.id !== appt.patientId &&
+      dbUser.id !== appt.doctorId
+    ) {
+      await t.rollback();
+      return res
+        .status(403)
+        .json({ error: "You are not allowed to reschedule this appointment." });
     }
 
     // Check for double booking
@@ -242,7 +307,8 @@ exports.getDoctors = async (req, res) => {
 
 // 5. Check Availability (Sequence: "checkAvailability() -> returnAvailableSlots()")
 exports.getDoctorSlots = async (req, res) => {
-  const { doctorId } = req.params;
+  const doctorId = parseInt(req.params.doctorId);
+  
   const { date } = req.query; // e.g. "2026-03-15"
 
   try {
@@ -254,8 +320,11 @@ exports.getDoctorSlots = async (req, res) => {
     // 2. Fetch Availability for this day
     const { Availability } = require("../models"); // Ensure it's imported
     const availability = await Availability.findOne({
+
       where: { doctorId, dayOfWeek, isAvailable: true }
+      
     });
+    console.log(`🔍 Looking for doctorId=${doctorId} dayOfWeek=${dayOfWeek} → Found:`, availability ? 'YES' : 'NO');
 
     if (!availability) {
       return res.json({ date, availableSlots: [] });
@@ -290,6 +359,12 @@ exports.getDoctorSlots = async (req, res) => {
     const existingBookings = await Appointment.findAll({
       where: { doctorId, appointmentDate: date, status: "scheduled" },
     });
+
+    const normalizeSlot = (slot) =>
+      String(slot || "")
+        .trim()
+        .toUpperCase()
+        .replace(/\s+/g, " ");
 
     const bookedTimes = existingBookings.map((a) => a.timeSlot);
     const validSlots = slots.filter((time) => !bookedTimes.includes(time));

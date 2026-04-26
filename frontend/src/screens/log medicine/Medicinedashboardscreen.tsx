@@ -1,6 +1,6 @@
 // ─── src/screens/log medicine/MedicineDashboardScreen.tsx ───────────────────
 
-import React from "react";
+import React, { useCallback } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -11,6 +11,7 @@ import {
   Dimensions,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
 import { Plus } from "lucide-react-native";
 import Svg, { Circle } from "react-native-svg";
 
@@ -102,7 +103,13 @@ const MedCard: React.FC<MedCardProps> = ({ med, onPress, onTake }) => {
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 export default function MedicineDashboardScreen({ navigation }: Props): React.JSX.Element {
-  const { medicines, markTaken } = useMedicines();
+  const { medicines, markTaken, refetch, loading } = useMedicines();
+
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch]),
+  );
 
   const takenToday = medicines.filter(m => m.taken[TODAY]).length;
   const pct        = medicines.length ? Math.round((takenToday / medicines.length) * 100) : 0;
@@ -174,6 +181,12 @@ export default function MedicineDashboardScreen({ navigation }: Props): React.JS
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}
       >
+        {loading && medicines.length === 0 ? (
+          <View style={{ paddingVertical: 30, alignItems: "center" }}>
+            <Text style={{ color: "#fff", fontWeight: "700" }}>Loading medicines...</Text>
+          </View>
+        ) : null}
+
         {/* Low stock alert */}
         {lowStock.length > 0 && (
           <TouchableOpacity
@@ -203,6 +216,13 @@ export default function MedicineDashboardScreen({ navigation }: Props): React.JS
             <Text style={styles.emptyEmoji}>{"💊"}</Text>
             <Text style={styles.emptyTitle}>{"No medicines yet"}</Text>
             <Text style={styles.emptySub}>{"Tap + to log your first medicine"}</Text>
+            <TouchableOpacity
+              style={styles.emptyCta}
+              onPress={() => navigation.navigate("AddMedicine", {})}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.emptyCtaText}>{"Add Medicine"}</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -266,6 +286,8 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 50, marginBottom: 12 },
   emptyTitle: { fontWeight: "700", color: Colors.navy, fontSize: 15, marginBottom: 4 },
   emptySub:   { fontSize: 13, color: Colors.muted },
+  emptyCta:   { marginTop: 14, backgroundColor: Colors.teal, borderRadius: 22, paddingHorizontal: 20, paddingVertical: 10 },
+  emptyCtaText:{ color: "#fff", fontWeight: "700", fontSize: 13 },
 
   medCard:     { backgroundColor: Colors.card, borderRadius: 16, padding: 14, marginBottom: 11, flexDirection: "row", alignItems: "center", gap: 14, borderWidth: 1.5, borderColor: Colors.border, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
   medIconWrap: { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center" },

@@ -19,14 +19,17 @@ export interface Medicine {
 export type AuthStackParamList = {
   // Auth
   Welcome: undefined;
-
+  
   PhoneNumber: undefined;
   Otp: { confirmation: any };
   Register: undefined;
   Login: undefined;
+  ForgotPassword: undefined;
 
   // Dashboard
   Home: undefined;
+  Appointments: undefined;
+  Settings: undefined;
 
   // Mental Health — Core
   MentalHealth: undefined;
@@ -50,8 +53,25 @@ export type AuthStackParamList = {
   BookAppointment: undefined;
   DoctorList: undefined;
   DoctorDetails: undefined;
-  Payment: undefined;
-  BookingSuccess: undefined;
+  Payment: {
+    doctor: {
+      id: number | string;
+      name: string;
+      specialty: string;
+      image?: string;
+      rating?: number;
+      priceValue?: number;
+    };
+    date: string;
+    time: string;
+    reason: string;
+  };
+  PaymentMethod: { selectedMethod?: string } | undefined;
+  BookingSuccess: {
+    doctor: { name: string; specialty: string; image?: string };
+    date: string;
+    time: string;
+  };
   AppointmentDetails: undefined;
   RescheduleAppointment: undefined;
   MyAppointments: undefined;
@@ -62,8 +82,15 @@ export type AuthStackParamList = {
 
   // Other
   AiAssistant: undefined;
-  
+
   MedicalRecords: undefined;
+  MedicalRecordDetail: { record: any };
+  AddMedicalRecord: { record?: any } | undefined;
+  Community: undefined;
+  HealthArticles: undefined;
+
+  // ✅ Emergency Alert — NEW
+  Emergency: undefined;
 
   // Medicine Tracker
   MedicineDashboard: undefined;
@@ -71,3 +98,8 @@ export type AuthStackParamList = {
   MedicineDetail: { medicineId: string | number };
   RefillManager: undefined;
 };
+
+
+
+
+ 

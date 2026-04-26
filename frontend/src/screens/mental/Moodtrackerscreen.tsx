@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -9,12 +9,13 @@ import {
   Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { createWellnessEntry, getWellnessEntries } from "../../services/api";
 
 const { width } = Dimensions.get("window");
 const GRAPH_WIDTH = width - 64;
 
 // ─── Mock history data (replace with AsyncStorage/backend) ───────────────────
-const MOOD_HISTORY = [
+const DEFAULT_MOOD_HISTORY = [
   { day: "Mon", score: 4, emoji: "😊", note: "Had a great morning walk" },
   { day: "Tue", score: 2, emoji: "😔", note: "Felt overwhelmed at work" },
   { day: "Wed", score: 3, emoji: "😐", note: "Average day, nothing special" },
@@ -45,9 +46,33 @@ function MoodTrackerScreen({ navigation }: { navigation: any }) {
   const [note, setNote] = useState("");
   const [saved, setSaved] = useState(false);
   const [activeTab, setActiveTab] = useState<"log" | "history">("log");
+  const [moodHistory, setMoodHistory] = useState(DEFAULT_MOOD_HISTORY);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const entries = await getWellnessEntries("mood", 100);
+        if (!Array.isArray(entries)) return;
+        const mapped = entries
+          .map((entry: any) => ({
+            day: new Date(entry.createdAt).toLocaleDateString("en-US", { weekday: "short" }),
+            score: Number(entry.payload?.score || 3),
+            emoji: entry.payload?.emoji || "😐",
+            note: entry.payload?.note || "",
+          }))
+          .slice(0, 7);
+        if (mapped.length > 0) setMoodHistory(mapped);
+      } catch (error) {
+        console.warn("Mood history load failed:", error);
+      }
+    };
+    load();
+  }, []);
 
   const avgMood = (
-    MOOD_HISTORY.reduce((a, b) => a + b.score, 0) / MOOD_HISTORY.length
+    moodHistory.length
+      ? moodHistory.reduce((a, b) => a + b.score, 0) / moodHistory.length
+      : 0
   ).toFixed(1);
 
   const toggleTrigger = (t: string) =>
@@ -55,8 +80,29 @@ function MoodTrackerScreen({ navigation }: { navigation: any }) {
       prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]
     );
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (selectedMood === null) return;
+    const selected = MOODS.find((m) => m.score === selectedMood);
+    const payload = {
+      score: selectedMood,
+      emoji: selected?.emoji || "😐",
+      triggers: selectedTriggers,
+      note: note || "",
+    };
+    try {
+      await createWellnessEntry("mood", payload);
+      setMoodHistory((prev) => [
+        {
+          day: new Date().toLocaleDateString("en-US", { weekday: "short" }),
+          score: payload.score,
+          emoji: payload.emoji,
+          note: payload.note || "No note",
+        },
+        ...prev,
+      ].slice(0, 7));
+    } catch (error) {
+      console.warn("Mood save failed:", error);
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -180,14 +226,14 @@ function MoodTrackerScreen({ navigation }: { navigation: any }) {
                 <View style={styles.summaryDivider} />
                 <View style={styles.summaryItem}>
                   <Text style={styles.summaryValue}>
-                    {MOOD_HISTORY.filter((d) => d.score >= 4).length}
+                    {moodHistory.filter((d) => d.score >= 4).length}
                   </Text>
                   <Text style={styles.summaryLabel}>Good Days</Text>
                 </View>
                 <View style={styles.summaryDivider} />
                 <View style={styles.summaryItem}>
                   <Text style={styles.summaryValue}>
-                    {MOOD_HISTORY.filter((d) => d.score <= 2).length}
+                    {moodHistory.filter((d) => d.score <= 2).length}
                   </Text>
                   <Text style={styles.summaryLabel}>Low Days</Text>
                 </View>
@@ -198,7 +244,7 @@ function MoodTrackerScreen({ navigation }: { navigation: any }) {
             <View style={styles.card}>
               <Text style={styles.cardTitle}>This Week</Text>
               <View style={styles.graph}>
-                {MOOD_HISTORY.map((d, i) => {
+                {moodHistory.map((d, i) => {
                   const barH = (d.score / GRAPH_MAX) * 120;
                   return (
                     <View key={i} style={styles.graphCol}>
@@ -231,7 +277,7 @@ function MoodTrackerScreen({ navigation }: { navigation: any }) {
             {/* Daily Log List */}
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Daily Log</Text>
-              {MOOD_HISTORY.map((d, i) => (
+              {moodHistory.map((d, i) => (
                 <View key={i} style={styles.logRow}>
                   <View style={[styles.logScoreDot, { backgroundColor: moodColor(d.score) }]}>
                     <Text style={styles.logScoreText}>{d.score}</Text>

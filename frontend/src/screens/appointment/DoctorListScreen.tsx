@@ -32,6 +32,7 @@ export default ({ navigation, route }: any) => {
   const [selectedGender, setSelectedGender] = useState<string | null>(null);
   const [priceModalVisible, setPriceModalVisible] = useState(false);
   const [priceSort, setPriceSort] = useState<"asc" | "desc" | null>(null);
+  const [showingFallbackDoctors, setShowingFallbackDoctors] = useState(false);
 
   useEffect(() => {
     const fetchDoctors = async () => {
@@ -40,14 +41,27 @@ export default ({ navigation, route }: any) => {
       try {
         // 🟢 NEW: Call your Node.js Backend (MySQL)
         // If category is "All Doctors", we pass null so the API fetches everyone
-        const apiData = await getDoctors(categoryTitle === "All Doctors" ? null : categoryTitle);
+        let apiData = await getDoctors(categoryTitle === "All Doctors" ? null : categoryTitle);
+
+        // If a specific specialty has no records, show all doctors instead.
+        if (categoryTitle !== "All Doctors" && apiData.length === 0) {
+          const fallback = await getDoctors(null);
+          if (fallback.length > 0) {
+            apiData = fallback;
+            setShowingFallbackDoctors(true);
+          } else {
+            setShowingFallbackDoctors(false);
+          }
+        } else {
+          setShowingFallbackDoctors(false);
+        }
 
         console.log(`✅ API Returned ${apiData.length} doctors`);
 
         // 🟢 MAPPING: Convert MySQL Data Format -> UI Format
         // This is crucial because your DB has 'consultationFee' but your UI expects 'price'
         const formattedList = apiData.map((doc: any) => ({
-          id: doc.id.toString(), // Ensure ID is string for FlatList
+          id: doc.id, // Ensure ID is string for FlatList
           name: doc.user?.fullName || "Unknown Doctor", // Join from User Table
           specialty: doc.specialization,
           image: doc.user?.profilePicture || null, // Join from User Table
@@ -169,6 +183,13 @@ export default ({ navigation, route }: any) => {
 
       {/* Horizontal Filters Scroll */}
       <View>
+        {showingFallbackDoctors && (
+          <View style={{ marginHorizontal: 16, marginBottom: 8, backgroundColor: "#FEF3C7", padding: 10, borderRadius: 10 }}>
+            <Text style={{ color: "#92400E", fontSize: 12 }}>
+              No doctors found in "{categoryTitle}". Showing all available doctors instead.
+            </Text>
+          </View>
+        )}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersScroll}>
           <TouchableOpacity
             style={[styles.filterPill, availableToday && styles.filterPillActive]}
@@ -216,8 +237,14 @@ export default ({ navigation, route }: any) => {
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyTitle}>No Doctors Found</Text>
               <Text style={styles.emptySubtitle}>
-                {searchQuery ? `No results for "${searchQuery}"` : "Try adjusting your filters"}
+                {searchQuery ? `No results for "${searchQuery}"` : "Try adjusting your filters or view all doctors"}
               </Text>
+              <TouchableOpacity
+                style={{ marginTop: 12, backgroundColor: "#199A8E", borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 }}
+                onPress={() => navigation.replace("DoctorList", { specialty: "All Doctors" })}
+              >
+                <Text style={{ color: "#FFF", fontWeight: "700" }}>View All Doctors</Text>
+              </TouchableOpacity>
             </View>
           }
         />
