@@ -1,7 +1,7 @@
 const { DataTypes } = require("sequelize");
 const { sequelize } = require("../config/database");
 
-// Reference: SDS Table 12 - Appointment Table Dictionaryy
+// Reference: SDS Table 12 - Appointment Table Dictionary
 const Appointment = sequelize.define(
   "Appointment",
   {
@@ -30,49 +30,41 @@ const Appointment = sequelize.define(
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
     },
-    // "reason" maps to "medicalContext" in our new logic
     reason: {
       type: DataTypes.STRING,
       allowNull: true,
     },
     meetingLink: {
-      type: DataTypes.STRING, // For telemedicine links
+      type: DataTypes.STRING,
       allowNull: true,
     },
-    // We explicitly define foreign keys here for clarity, though associations handle them too
     patientId: {
-      type: DataTypes.INTEGER, // Match your User ID type (usually INTEGER)
+      type: DataTypes.INTEGER,
       allowNull: false,
     },
     doctorId: {
-      type: DataTypes.INTEGER, // Match your Doctor ID type
+      type: DataTypes.INTEGER,
       allowNull: false,
-    }
+    },
   },
   {
     indexes: [
       {
-        unique: true, // Prevents double booking for the same doc at same time
+        unique: true,
         fields: ["doctorId", "appointmentDate", "timeSlot"],
       },
     ],
   }
 );
 
-// 🟢 ENABLE ASSOCIATIONS
-// We use a static method pattern to keep it clean in models/index.js
 Appointment.associate = (models) => {
-  // 1. Link to Patient (User Table)
-  Appointment.belongsTo(models.User, { 
-    as: 'patient', 
-    foreignKey: 'patientId' 
+  Appointment.belongsTo(models.User, {
+    as: "patient",
+    foreignKey: "patientId",
   });
-
-  // 2. Link to Doctor (Doctor Table - NOT User Table directly)
-  // This allows us to access Doctor->Specialty AND Doctor->User->Name
-  Appointment.belongsTo(models.Doctor, { 
-    as: 'doctor', 
-    foreignKey: 'doctorId' 
+  Appointment.belongsTo(models.Doctor, {
+    as: "doctor",
+    foreignKey: "doctorId",
   });
 };
 

@@ -1,3 +1,7 @@
+// frontend/src/screens/appointment/AppointmentDetailsScreen.tsx
+// CHANGE: Added "Chat with Doctor" button that navigates to LiveChatScreen.
+// Only shown when appointment status is "scheduled" or "confirmed".
+
 import React, { useState } from "react";
 import {
   SafeAreaView,
@@ -9,17 +13,15 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import { ChevronLeft, MoreVertical } from "lucide-react-native";
+import { ChevronLeft, MoreVertical, MessageCircle } from "lucide-react-native";
 import { cancelAppointment } from "../../services/api";
 import styles from "./styles/AppointmentDetailStyles";
 
 export default ({ navigation, route }: any) => {
-  // Get the appointment object passed from Home
   const { appointment } = route.params || {};
-
   const [loading, setLoading] = useState(false);
 
-  // --- DELETE (Cancel) Operation ---
+  // ── Cancel ──────────────────────────────────────────────────────────────────
   const handleCancelAppointment = () => {
     Alert.alert(
       "Cancel Appointment",
@@ -34,26 +36,39 @@ export default ({ navigation, route }: any) => {
             try {
               await cancelAppointment(appointment.id);
               Alert.alert("Cancelled", "Appointment has been cancelled successfully.");
-              navigation.goBack(); // Go back to Home to refresh
+              navigation.goBack();
             } catch (error) {
               console.error(error);
               Alert.alert("Error", "Could not cancel appointment.");
             } finally {
               setLoading(false);
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
 
-  // --- UPDATE (Reschedule) Operation ---
+  // ── Reschedule ───────────────────────────────────────────────────────────────
   const handleReschedule = () => {
-    // Navigate to the Reschedule Screen and pass the current appointment data
-    navigation.navigate("RescheduleAppointment", { appointment: appointment });
+    navigation.navigate("RescheduleAppointment", { appointment });
+  };
+
+  // ── Open Live Chat (Mockup M13) ──────────────────────────────────────────────
+  const handleOpenChat = () => {
+    navigation.navigate("LiveChat", {
+      appointmentId: appointment.id,
+      doctorName: appointment.doctorName || "Doctor",
+      doctorSpecialty: appointment.doctorSpecialty || "Specialist",
+      doctorImage: appointment.doctorImage,
+    });
   };
 
   if (!appointment) return null;
+
+  // Chat is only available for active appointments
+  const isChatAvailable =
+    appointment.status === "scheduled" || appointment.status === "confirmed";
 
   return (
     <SafeAreaView style={styles.container}>
@@ -77,7 +92,7 @@ export default ({ navigation, route }: any) => {
         {/* Doctor Info */}
         <View style={styles.doctorCard}>
           <Image
-            source={{ uri: appointment.doctorImage || 'https://via.placeholder.com/150' }}
+            source={{ uri: appointment.doctorImage || "https://via.placeholder.com/150" }}
             style={styles.doctorImage}
           />
           <View style={styles.doctorInfo}>
@@ -86,35 +101,46 @@ export default ({ navigation, route }: any) => {
           </View>
         </View>
 
-        {/* Details List */}
+        {/* Details */}
         <Text style={styles.sectionTitle}>Visit Information</Text>
 
         <View style={styles.detailRow}>
           <Text style={styles.label}>Date</Text>
           <Text style={styles.value}>{appointment.date}</Text>
         </View>
-
         <View style={styles.detailRow}>
           <Text style={styles.label}>Time</Text>
           <Text style={styles.value}>{appointment.time}</Text>
         </View>
-
         <View style={styles.detailRow}>
           <Text style={styles.label}>Reason</Text>
           <Text style={styles.value} numberOfLines={2}>{appointment.reason}</Text>
         </View>
-
         <View style={styles.detailRow}>
           <Text style={styles.label}>Total Cost</Text>
-          <Text style={[styles.value, { color: '#199A8E' }]}>Rs. {appointment.totalAmount}</Text>
+          <Text style={[styles.value, { color: "#199A8E" }]}>
+            Rs. {appointment.totalAmount}
+          </Text>
         </View>
 
-        {/* CRUD Buttons */}
+        {/* Action Buttons */}
         <View style={styles.actionsContainer}>
           {loading ? (
             <ActivityIndicator size="large" color="#199A8E" />
           ) : (
             <>
+              {/* ── Chat with Doctor — NEW ── */}
+              {isChatAvailable && (
+                <TouchableOpacity
+                  style={chatButtonStyle}
+                  onPress={handleOpenChat}
+                  activeOpacity={0.85}
+                >
+                  <MessageCircle size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                  <Text style={chatButtonTextStyle}>Chat with Doctor</Text>
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity style={styles.rescheduleButton} onPress={handleReschedule}>
                 <Text style={styles.rescheduleText}>Reschedule Appointment</Text>
               </TouchableOpacity>
@@ -125,8 +151,32 @@ export default ({ navigation, route }: any) => {
             </>
           )}
         </View>
-
       </ScrollView>
     </SafeAreaView>
   );
+};
+
+// ─── Inline styles for the new Chat button ────────────────────────────────────
+// (Uses the same primary green as the rest of the app; kept inline so we don't
+//  need to touch the shared AppointmentDetailStyles.ts file.)
+
+const chatButtonStyle = {
+  flexDirection: "row" as const,
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+  backgroundColor: "#199A8E",
+  borderRadius: 12,
+  paddingVertical: 14,
+  marginBottom: 12,
+  elevation: 2,
+  shadowColor: "#199A8E",
+  shadowOffset: { width: 0, height: 3 },
+  shadowOpacity: 0.25,
+  shadowRadius: 6,
+};
+
+const chatButtonTextStyle = {
+  color: "#FFFFFF",
+  fontSize: 15,
+  fontWeight: "700" as const,
 };

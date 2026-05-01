@@ -33,7 +33,7 @@ export default ({ navigation }: any) => {
   const auth = getAuth();
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     const hydrateLockout = async () => {
       const lockoutUntil = await AsyncStorage.getItem(LOCKOUT_KEY);
       if (!lockoutUntil) return;

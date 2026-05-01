@@ -12,48 +12,72 @@ type Props = {
   navigation: any;
 };
 
-const isRouteActive = (routeName: string, current: string) => {
-  if (routeName === current) return true;
-  // Treat nested stack screens as "Appointments"
-  if (
-    routeName === "Appointments" &&
-    [
-      "BookAppointment",
-      "DoctorList",
-      "DoctorDetails",
-      "Payment",
-      "BookingSuccess",
-      "AppointmentDetails",
-      "RescheduleAppointment",
-    ].includes(current)
-  ) {
-    return true;
-  }
-  return false;
-};
+const APPOINTMENT_SCREENS = [
+  "Appointments",
+  "BookAppointment",
+  "DoctorList",
+  "DoctorDetails",
+  "Payment",
+  "PaymentMethod",
+  "BookingSuccess",
+  "AppointmentDetails",
+  "RescheduleAppointment",
+];
 
 export default function BottomNavBar({ navigation }: Props) {
+  // In a flat Stack navigator, useRoute() correctly gives the current screen
   const route = useRoute<any>();
   const current = route?.name || "";
 
-  const iconColor = (name: string) =>
-    isRouteActive(name, current) ? "#1C2A3A" : "#FFFFFF";
+  const isActive = (tabName: string) => {
+    if (tabName === "Appointments") {
+      return APPOINTMENT_SCREENS.includes(current);
+    }
+    return current === tabName;
+  };
+
+  const iconColor = (tabName: string) =>
+    isActive(tabName) ? "#1C2A3A" : "#FFFFFF";
 
   return (
     <View style={styles.bottomNav}>
-      <TouchableOpacity onPress={() => navigation.navigate("Home")}>
+      <TouchableOpacity
+        style={styles.navItem}
+        activeOpacity={0.7}
+        onPress={() => {
+          if (current !== "Home") navigation.navigate("Home");
+        }}
+      >
         <Home color={iconColor("Home")} size={24} />
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => navigation.navigate("Appointments")}>
+      <TouchableOpacity
+        style={styles.navItem}
+        activeOpacity={0.7}
+        onPress={() => {
+          if (current !== "Appointments") navigation.navigate("Appointments");
+        }}
+      >
         <CalendarDays color={iconColor("Appointments")} size={24} />
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => navigation.navigate("Profile")}>
+      <TouchableOpacity
+        style={styles.navItem}
+        activeOpacity={0.7}
+        onPress={() => {
+          if (current !== "Profile") navigation.navigate("Profile");
+        }}
+      >
         <UserIcon color={iconColor("Profile")} size={24} />
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
+      <TouchableOpacity
+        style={styles.navItem}
+        activeOpacity={0.7}
+        onPress={() => {
+          if (current !== "Settings") navigation.navigate("Settings");
+        }}
+      >
         <Settings color={iconColor("Settings")} size={24} />
       </TouchableOpacity>
     </View>
@@ -78,5 +102,9 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 10,
   },
+  navItem: {
+    padding: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });
-

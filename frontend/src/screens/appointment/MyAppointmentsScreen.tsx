@@ -33,21 +33,35 @@ const MyAppointmentsScreen = ({ navigation }: any) => {
                     return;
                 }
 
+                // Safety timeout — never spin forever
+                const safetyTimer = setTimeout(() => {
+                    if (isActive) { setLoading(false); setAppointments([]); }
+                }, 10000);
                 try {
-                    const userProfile = await getUserProfile(currentUser.uid);
+                    let userProfile;
+                    try {
+                        userProfile = await getUserProfile(currentUser.uid);
+                    } catch (profileErr) {
+                        clearTimeout(safetyTimer);
+                        if (isActive) { setLoading(false); setAppointments([]); }
+                        return;
+                    }
                     if (isActive && userProfile) {
-                        const data = await getMyAppointments(userProfile.id, 'patient');
+                        let data = [];
+                        try {
+                            data = await getMyAppointments(userProfile.id, 'patient');
+                        } catch { data = []; }
                         if (isActive) {
                             setAppointments(data || []);
-
-                            // If no date is selected yet, select today
                             if (!selectedDate) {
                                 const todayStr = new Date().toISOString().split("T")[0];
                                 setSelectedDate(todayStr);
                             }
                         }
                     }
+                    clearTimeout(safetyTimer);
                 } catch (error) {
+                    clearTimeout(safetyTimer);
                     console.error("Failed to load appointments", error);
                 } finally {
                     if (isActive) setLoading(false);

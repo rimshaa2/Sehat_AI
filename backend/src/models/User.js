@@ -1,3 +1,8 @@
+// ─── src/models/User.js ───────────────────────────────────────────────────────
+// MODIFIED: Added `fcmToken` column for FCM push notification support.
+// Run `sequelize.sync({ alter: true })` or apply a migration to update the DB.
+// ─────────────────────────────────────────────────────────────────────────────
+
 const { DataTypes } = require("sequelize");
 const { sequelize } = require("../config/database");
 
@@ -69,6 +74,23 @@ const User = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: true, // e.g. "Penicillin, Peanuts"
     },
+    // ── Extended Health Fields ──────────────────────────────────────────────
+    dateOfBirth: {
+      type: DataTypes.DATEONLY,
+      allowNull: true,
+    },
+    weight: {
+      type: DataTypes.FLOAT,  // in kg
+      allowNull: true,
+    },
+    height: {
+      type: DataTypes.FLOAT,  // in cm
+      allowNull: true,
+    },
+    emergencyContact: {
+      type: DataTypes.STRING,
+      allowNull: true,  // e.g. "Ali Khan — 0300-1234567"
+    },
     profilePicture: {
       type: DataTypes.STRING,
       allowNull: true,
@@ -82,6 +104,16 @@ const User = sequelize.define(
       type: DataTypes.ENUM("en", "ur", "pa"),
       allowNull: false,
       defaultValue: "en",
+    },
+
+    // ── FCM Push Notification Token ─────────────────────────────────────────
+    // Stored when the device calls POST /api/notifications/register-token.
+    // Cleared on logout. Used by cron jobs for medicine/appointment reminders.
+    // SRS 1.7.4 FE-1, 1.7.3 FE-2, NFR-4
+    fcmToken: {
+      type: DataTypes.TEXT,      // FCM tokens can be long
+      allowNull: true,
+      defaultValue: null,
     },
   },
   {

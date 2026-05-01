@@ -18,18 +18,41 @@ export default function AppointmentsScreen({ navigation }: any) {
   const [appointments, setAppointments] = useState<any[]>([]);
 
   useFocusEffect(
-    () => {
+    React.useCallback(() => {
       let active = true;
       const run = async () => {
         setLoading(true);
+        // Safety timeout — never spin forever
+        const safetyTimer = setTimeout(() => {
+          if (active) { setLoading(false); setAppointments([]); }
+        }, 10000);
         try {
           const auth = getAuth();
-          if (!auth.currentUser) return;
-          const profile = await getUserProfile(auth.currentUser.uid);
-          const list = await getMyAppointments(profile.id, "patient");
+          if (!auth.currentUser) {
+            clearTimeout(safetyTimer);
+            if (active) setLoading(false);
+            return;
+          }
+          let profile;
+          try {
+            profile = await getUserProfile(auth.currentUser.uid);
+          } catch (profileErr) {
+            // Backend unreachable — stop loading, show empty state
+            clearTimeout(safetyTimer);
+            if (active) { setLoading(false); setAppointments([]); }
+            return;
+          }
+          let list = [];
+          try {
+            list = await getMyAppointments(profile.id, "patient");
+          } catch (listErr) {
+            list = [];
+          }
+          clearTimeout(safetyTimer);
           if (!active) return;
           setAppointments(Array.isArray(list) ? list : []);
         } catch (e) {
+          clearTimeout(safetyTimer);
           if (!active) return;
           setAppointments([]);
         } finally {
@@ -37,10 +60,8 @@ export default function AppointmentsScreen({ navigation }: any) {
         }
       };
       run();
-      return () => {
-        active = false;
-      };
-    },
+      return () => { active = false; };
+    }, []),
   );
 
   return (
@@ -141,4 +162,3 @@ export default function AppointmentsScreen({ navigation }: any) {
     </SafeAreaView>
   );
 }
-

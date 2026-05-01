@@ -1,4 +1,6 @@
-// ─── src/navigation/types.ts ─────────────────────────────────────────────────
+// frontend/src/navigation/types.ts
+// ─── Navigation param types ───────────────────────────────────────────────────
+// CHANGE: Added  LiveChat  to AuthStackParamList
 
 export interface Medicine {
   id: string | number;
@@ -19,7 +21,6 @@ export interface Medicine {
 export type AuthStackParamList = {
   // Auth
   Welcome: undefined;
-  
   PhoneNumber: undefined;
   Otp: { confirmation: any };
   Register: undefined;
@@ -74,7 +75,14 @@ export type AuthStackParamList = {
   };
   AppointmentDetails: undefined;
   RescheduleAppointment: undefined;
-  MyAppointments: undefined;
+
+  // ── NEW: Live Chat with Doctor (Mockup M13) ─────────────────────────────────
+  LiveChat: {
+    appointmentId: string;
+    doctorName: string;
+    doctorSpecialty: string;
+    doctorImage?: string;
+  };
 
   // Profile
   Profile: undefined;
@@ -89,7 +97,7 @@ export type AuthStackParamList = {
   Community: undefined;
   HealthArticles: undefined;
 
-  // ✅ Emergency Alert — NEW
+  // Emergency Alert
   Emergency: undefined;
 
   // Medicine Tracker
@@ -98,8 +106,3 @@ export type AuthStackParamList = {
   MedicineDetail: { medicineId: string | number };
   RefillManager: undefined;
 };
-
-
-
-
- 

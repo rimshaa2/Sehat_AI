@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { clearPushToken } from '../../hooks/usePushNotifications';
+
 import {
   SafeAreaView,
   View,
@@ -58,14 +60,16 @@ export default function SettingsScreen({ navigation }: any) {
     }
   };
 
+
   const signOut = async () => {
-    try {
-      await auth().signOut();
-      navigation.reset({ index: 0, routes: [{ name: "Welcome" }] });
-    } catch (e) {
-      Alert.alert("Error", "Could not sign out. Try again.");
-    }
-  };
+  try {
+    await clearPushToken().catch(() => {});
+    await auth().signOut();
+    navigation.reset({ index: 0, routes: [{ name: "Welcome" }] });
+  } catch (e) {
+    Alert.alert("Error", "Could not sign out. Try again.");
+  }
+};
 
   const Row = ({
     icon,

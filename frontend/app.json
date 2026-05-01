@@ -35,8 +35,16 @@
     },
     "plugins": [
       "expo-build-properties",
-      "@react-native-firebase/app",
-      "@react-native-firebase/auth"
+  "@react-native-firebase/app",
+  "@react-native-firebase/auth",
+  "expo-web-browser",
+  "expo-image-picker",
+   [
+    "expo-av",
+    {
+      "microphonePermission": "Allow SehatAI to access your microphone."
+    }
+  ]
     ],
     "extra": {
       "eas": {
