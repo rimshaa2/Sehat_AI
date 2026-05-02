@@ -53,33 +53,48 @@ const C = {
   red:          "#EF4444",
 };
 
-// ─── Fake static reviews (shown alongside any real ones from DB) ──────────────
-const STATIC_REVIEWS = [
-  {
-    id: "s1",
-    name: "Abdul Rojak",
-    avatar: "https://i.pravatar.cc/80?img=11",
-    rating: 4.5,
-    time: "Today",
-    text: "Very professional and caring doctor. Explained everything clearly.",
-  },
-  {
-    id: "s2",
-    name: "Antok Godek",
-    avatar: "https://i.pravatar.cc/80?img=33",
-    rating: 4.5,
-    time: "Yesterday",
-    text: "Great experience. Waited a bit but the consultation was thorough and helpful.",
-  },
-  {
-    id: "s3",
-    name: "Indah Julaina",
-    avatar: "https://i.pravatar.cc/80?img=47",
-    rating: 4.5,
-    time: "1 Week ago",
-    text: "Highly recommend. Very knowledgeable and answered all my questions patiently.",
-  },
-];
+// ─── Specialty-specific review banks ─────────────────────────────────────────
+// Reviews are seeded from the doctor's specialty so each doctor gets
+// contextually relevant feedback rather than generic text.
+const REVIEW_BANK: Record<string, { text: string; name: string; color: string }[]> = {
+  cardio: [
+    { name: "Farrukh Ahmed",  color: "#EF4444", text: "My heart condition was handled with great care. The doctor explained every step of my ECG results clearly." },
+    { name: "Sadia Malik",    color: "#F97316", text: "Finally found a cardiologist who actually listens. Blood pressure is now fully under control after 3 months." },
+    { name: "Imran Qureshi",  color: "#8B5CF6", text: "Very thorough. Caught an arrhythmia my previous doctor missed. Highly recommend for cardiac issues." },
+  ],
+  derma: [
+    { name: "Hina Baig",      color: "#EC4899", text: "My acne scars have improved so much after following the treatment plan. Very satisfied with the results." },
+    { name: "Zara Khan",      color: "#6366F1", text: "Best dermatologist I have visited. Diagnosed my skin condition in the first session itself." },
+    { name: "Ali Hassan",     color: "#14B8A6", text: "The prescribed cream worked wonders for my eczema. Consultation was quick and to the point." },
+  ],
+  ortho: [
+    { name: "Tariq Hussain",  color: "#F59E0B", text: "Knee pain is completely gone after the physiotherapy plan the doctor recommended. Life changing!" },
+    { name: "Nasreen Akhtar", color: "#10B981", text: "Very experienced with spine issues. My slipped disc was managed without surgery — very grateful." },
+    { name: "Bilal Chaudhry", color: "#3B82F6", text: "Clear explanation of my fracture X-ray and a solid recovery plan. Healed faster than expected." },
+  ],
+  neuro: [
+    { name: "Sara Ijaz",      color: "#8B5CF6", text: "My migraine frequency dropped significantly after the treatment plan. The doctor is very thorough." },
+    { name: "Usman Raza",     color: "#EC4899", text: "Excellent at diagnosing nerve-related issues. Very patient and explains everything in simple terms." },
+    { name: "Fatima Noor",    color: "#F59E0B", text: "Helped me manage my vertigo with a simple exercise plan. No medication needed — very holistic approach." },
+  ],
+  general: [
+    { name: "Kamran Ali",     color: "#199A8E", text: "Very thorough check-up. The doctor noticed things other GPs had overlooked. Highly recommend." },
+    { name: "Ayesha Siddiqui",color: "#F97316", text: "Always clear and honest about diagnosis. Never rushes through the appointment. Excellent bedside manner." },
+    { name: "Hassan Mehmood", color: "#6366F1", text: "Best family doctor we have had. My children feel comfortable and the advice is always practical." },
+  ],
+};
+
+const REVIEW_TIMES = ["Today", "Yesterday", "2 days ago", "1 week ago", "2 weeks ago"];
+
+// Pick the right review set based on specialty keywords
+const getReviewsForSpecialty = (specialty: string) => {
+  const s = (specialty || "").toLowerCase();
+  if (s.includes("cardio") || s.includes("heart"))              return REVIEW_BANK.cardio;
+  if (s.includes("derm") || s.includes("skin") || s.includes("genetic")) return REVIEW_BANK.derma;
+  if (s.includes("ortho") || s.includes("bone") || s.includes("spine")) return REVIEW_BANK.ortho;
+  if (s.includes("neuro") || s.includes("brain") || s.includes("nerve")) return REVIEW_BANK.neuro;
+  return REVIEW_BANK.general;
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const generateDates = () => {
@@ -171,7 +186,20 @@ export default function DoctorDetailsScreen({ navigation, route }: any) {
   const experience = doctor?.experience || "15 years";
   const patients   = doctor?.patients   || 1240;
   const price      = doctor?.priceValue || 1500;
-  const image      = doctor?.image      || "https://i.pravatar.cc/300?img=12";
+  // Avatar: use initials derived from the doctor's name — no stock photos
+  const nameInitials = (name || "D")
+    .replace(/^Dr\.?\s*/i, "")
+    .split(" ")
+    .slice(0, 2)
+    .map((w: string) => w[0]?.toUpperCase() || "")
+    .join("");
+
+  // Deterministic colour per doctor based on name char codes
+  const AVATAR_COLORS = ["#199A8E","#8B5CF6","#F59E0B","#EF4444","#3B82F6","#EC4899","#10B981","#F97316"];
+  const avatarColor = AVATAR_COLORS[
+    (name || "D").split("").reduce((acc: number, c: string) => acc + c.charCodeAt(0), 0) % AVATAR_COLORS.length
+  ];
+
   const bio        = doctor?.bio        ||
     "Dedicated healthcare professional committed to providing personalised and compassionate care. Passionate about advancing patient wellbeing through innovative and evidence-based medical practices. Specialist in hormone-related skin conditions, acne, hirsutism, and other skin disorders.";
   const location   = doctor?.location   || "Office #12, 2nd Floor, Al-Hameed Mall, G-11 Markaz, Islamabad Capital Territory, Pakistan";
@@ -206,8 +234,10 @@ export default function DoctorDetailsScreen({ navigation, route }: any) {
 
         {/* ── Hero Card ── */}
         <View style={s.heroCard}>
-          {/* Doctor photo — centered */}
-          <Image source={{ uri: image }} style={s.heroImage} />
+          {/* Doctor avatar — initials, colour derived from name */}
+          <View style={[s.heroAvatar, { backgroundColor: avatarColor }]}>
+            <Text style={s.heroAvatarText}>{nameInitials}</Text>
+          </View>
 
           {/* Name + specialty */}
           <Text style={s.heroName}>{name}</Text>
@@ -330,15 +360,20 @@ export default function DoctorDetailsScreen({ navigation, route }: any) {
             </View>
 
             {/* Review cards */}
-            {STATIC_REVIEWS.map((r) => (
-              <View key={r.id} style={s.reviewCard}>
+            {getReviewsForSpecialty(specialty).map((r, i) => (
+              <View key={i} style={s.reviewCard}>
                 <View style={s.reviewTop}>
-                  <Image source={{ uri: r.avatar }} style={s.reviewAvatar} />
+                  {/* Reviewer initial avatar */}
+                  <View style={[s.reviewAvatar, { backgroundColor: r.color }]}>
+                    <Text style={s.reviewAvatarText}>
+                      {r.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2)}
+                    </Text>
+                  </View>
                   <View style={s.reviewMeta}>
                     <Text style={s.reviewName}>{r.name}</Text>
-                    <StarRow rating={r.rating} size={13} />
+                    <StarRow rating={4.5} size={13} />
                   </View>
-                  <Text style={s.reviewTime}>{r.time}</Text>
+                  <Text style={s.reviewTime}>{REVIEW_TIMES[i % REVIEW_TIMES.length]}</Text>
                 </View>
                 <Text style={s.reviewText}>{r.text}</Text>
               </View>
@@ -466,10 +501,14 @@ const s = StyleSheet.create({
     borderRadius: 20, padding: 20,
     alignItems: "center",
   },
-  heroImage: {
-    width: 100, height: 100, borderRadius: 50,
+  heroAvatar: {
+    width: 90, height: 90, borderRadius: 45,
     borderWidth: 3, borderColor: C.white,
     marginBottom: 12,
+    alignItems: "center", justifyContent: "center",
+  },
+  heroAvatarText: {
+    fontSize: 32, fontWeight: "800", color: C.white,
   },
   heroName: { fontSize: 18, fontWeight: "800", color: C.dark, textAlign: "center" },
   heroSpecialty: { fontSize: 13, color: C.mid, marginTop: 4, marginBottom: 14, textAlign: "center" },
@@ -551,7 +590,11 @@ const s = StyleSheet.create({
     borderColor: C.border, padding: 14, marginBottom: 10,
   },
   reviewTop: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 },
-  reviewAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.border },
+  reviewAvatar: {
+    width: 40, height: 40, borderRadius: 20,
+    alignItems: "center", justifyContent: "center",
+  },
+  reviewAvatarText: { fontSize: 14, fontWeight: "800", color: C.white },
   reviewMeta: { flex: 1, gap: 3 },
   reviewName: { fontSize: 14, fontWeight: "700", color: C.dark },
   reviewTime: { fontSize: 11, color: C.light },

@@ -294,7 +294,7 @@ export default ({ navigation }: any) => {
           <View style={{ flex: 1 }}>
             <Text style={styles.promoTitle}>How AI is Revolutionizing Medical Consultations</Text>
             <TouchableOpacity onPress={() => navigation.navigate("HealthArticles")}>
-              <Text style={styles.promoLink}>Find out now →</Text>
+              <Text style={styles.promoLink}>Find out now  →</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.promoImagePlaceholder}>

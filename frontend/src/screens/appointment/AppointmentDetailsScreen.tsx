@@ -1,6 +1,8 @@
 // frontend/src/screens/appointment/AppointmentDetailsScreen.tsx
-// CHANGE: Added "Chat with Doctor" button that navigates to LiveChatScreen.
-// Only shown when appointment status is "scheduled" or "confirmed".
+// CHANGES:
+//   1. "Chat with Doctor" button navigates to LiveChatScreen (M13)
+//   2. Cancel now navigates to Home with appointmentCancelled param
+//      so the reminder card on HomeScreen disappears instantly
 
 import React, { useState } from "react";
 import {
@@ -35,8 +37,11 @@ export default ({ navigation, route }: any) => {
             setLoading(true);
             try {
               await cancelAppointment(appointment.id);
-              Alert.alert("Cancelled", "Appointment has been cancelled successfully.");
-              navigation.goBack();
+              // Navigate to Home with the cancelled ID so the reminder card
+              // is removed instantly without waiting for a re-fetch
+              navigation.navigate("Home", {
+                appointmentCancelled: appointment.id,
+              });
             } catch (error) {
               console.error(error);
               Alert.alert("Error", "Could not cancel appointment.");
@@ -129,7 +134,7 @@ export default ({ navigation, route }: any) => {
             <ActivityIndicator size="large" color="#199A8E" />
           ) : (
             <>
-              {/* ── Chat with Doctor — NEW ── */}
+              {/* Chat with Doctor */}
               {isChatAvailable && (
                 <TouchableOpacity
                   style={chatButtonStyle}
@@ -156,9 +161,7 @@ export default ({ navigation, route }: any) => {
   );
 };
 
-// ─── Inline styles for the new Chat button ────────────────────────────────────
-// (Uses the same primary green as the rest of the app; kept inline so we don't
-//  need to touch the shared AppointmentDetailStyles.ts file.)
+// ─── Inline styles for the Chat button ───────────────────────────────────────
 
 const chatButtonStyle = {
   flexDirection: "row" as const,
