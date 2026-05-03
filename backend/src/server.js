@@ -225,6 +225,22 @@ io.on("connection", (socket) => {
             senderName,
           });
         }
+      } else if (senderRole === "admin" || senderRole === "doctor") {
+        const appointment = await Appointment.findByPk(appointmentId, {
+          include: [{ model: sequelize.models.User, as: "patient" }]
+        });
+        if (appointment && appointment.patient && appointment.patient.fcmToken) {
+          const { sendToToken } = require('./services/notificationService');
+          await sendToToken(
+            appointment.patient.fcmToken,
+            {
+              title: `New message from ${senderName}`,
+              body: hasText ? message.trim() : "Sent an attachment",
+            },
+            { type: "NEW_MESSAGE", appointmentId: String(appointmentId) },
+            appointment.patient
+          );
+        }
       }
     } catch (err) {
       console.error("Failed to save chat message:", err);

@@ -70,6 +70,7 @@ import HealthArticlesScreen from "../screens/home/HealthArticlesScreen";
 import EmergencyScreen from "../screens/emergency/EmergencyScreen";
 import SettingsScreen from "../screens/settings/SettingsScreen";
 import CommunityScreen from "../screens/community/CommunityScreen";
+import NotificationsScreen from "../screens/notifications/NotificationsScreen";
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
@@ -142,6 +143,7 @@ const AppNavigator = () => {
         <Stack.Screen name="HealthArticles"     component={HealthArticlesScreen} />
         <Stack.Screen name="Community"          component={CommunityScreen} />
         <Stack.Screen name="Emergency"          component={EmergencyScreen} />
+        <Stack.Screen name="Notifications"      component={NotificationsScreen} />
 
       </Stack.Navigator>
   );

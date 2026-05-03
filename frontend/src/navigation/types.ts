@@ -100,6 +100,9 @@ export type AuthStackParamList = {
   // Emergency Alert
   Emergency: undefined;
 
+  // Notifications
+  Notifications: undefined;
+
   // Medicine Tracker
   MedicineDashboard: undefined;
   AddMedicine: { editMed?: Medicine };
