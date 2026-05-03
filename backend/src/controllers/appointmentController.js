@@ -95,6 +95,17 @@ exports.bookAppointment = async (req, res) => {
     }                                                                // ← FCM
     // ──────────────────────────────────────────────────────────────────────
 
+    // ── SOCKET.IO: Real-time notification for the doctor ──────────────────
+    const io = req.app.get("io");
+    if (io && doctor && doctor.userId) {
+      io.to(`user_${doctor.userId}`).emit("NEW_NOTIFICATION", {
+        type: "NEW_APPOINTMENT",
+        message: `New appointment booked by patient`,
+        appointmentId: newAppointment.id
+      });
+    }
+    // ──────────────────────────────────────────────────────────────────────
+
     res.status(201).json({
       success: true,
       appointment: newAppointment,

@@ -15,6 +15,8 @@ import { clsx } from "clsx";
 import { useAuth } from "../../context/AuthContext";
 import { auth } from "../../lib/firebase";
 import { signOut } from "firebase/auth";
+import { useEffect, useState } from "react";
+import api from "../../lib/api";
 
 const doctorMenuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/doctor/dashboard" },
@@ -49,6 +51,25 @@ export const DoctorSidebar = ({
   const { user } = useAuth();
   const doctorName = user?.displayName || "Doctor";
   const navigate = useNavigate();
+  const [specialization, setSpecialization] = useState<string>("Loading...");
+
+  useEffect(() => {
+    const fetchDoctorData = async () => {
+      if (user?.uid) {
+        try {
+          const response = await api.get("/doctors/status");
+          if (response.data && response.data.doctorDetails.specialization) {
+            setSpecialization(response.data.doctorDetails.specialization);
+          }
+        } catch (error) {
+          console.error("Error fetching doctor specialization:", error);
+          setSpecialization("Medical Professional"); // Fallback
+        }
+      }
+    };
+
+    fetchDoctorData();
+  }, [user]);
 
   const handleLogout = async () => {
     if (window.confirm("Are you sure you want to logout?")) {
@@ -66,7 +87,7 @@ export const DoctorSidebar = ({
         // Width
         isCollapsed ? "lg:w-[78px]" : "lg:w-72",
         // Mobile: full width inside overlay
-        "w-72"
+        "w-72",
       )}
     >
       {/* Decorative gradient line at the very top */}
@@ -76,11 +97,16 @@ export const DoctorSidebar = ({
       <div
         className={clsx(
           "flex items-center h-20 border-b border-slate-100",
-          isCollapsed ? "flex-col justify-center gap-1 px-3" : "px-5 gap-3"
+          isCollapsed ? "flex-col justify-center gap-1 px-3" : "px-5 gap-3",
         )}
       >
         {/* Logo + Text row */}
-        <div className={clsx("flex items-center", isCollapsed ? "" : "gap-3 flex-1 min-w-0")}>
+        <div
+          className={clsx(
+            "flex items-center",
+            isCollapsed ? "" : "gap-3 flex-1 min-w-0",
+          )}
+        >
           <div className="relative flex-shrink-0">
             <div className="bg-gradient-to-br from-[#199A8E] to-[#15857a] p-2.5 rounded-2xl shadow-lg shadow-[#199A8E]/20 ring-2 ring-[#199A8E]/10">
               <HeartPulse size={22} className="text-white" />
@@ -135,12 +161,10 @@ export const DoctorSidebar = ({
               title={isCollapsed ? item.label : undefined}
               className={clsx(
                 "group relative flex items-center rounded-2xl transition-all duration-200 font-semibold text-[13px]",
-                isCollapsed
-                  ? "justify-center py-3.5 mx-1"
-                  : "px-4 py-3 gap-3",
+                isCollapsed ? "justify-center py-3.5 mx-1" : "px-4 py-3 gap-3",
                 isActive
                   ? "bg-gradient-to-r from-[#199A8E] to-[#15857a] text-white shadow-lg shadow-[#199A8E]/20"
-                  : "text-slate-500 hover:bg-[#199A8E]/[0.06] hover:text-[#199A8E]"
+                  : "text-slate-500 hover:bg-[#199A8E]/[0.06] hover:text-[#199A8E]",
               )}
             >
               {/* Active indicator bar for collapsed mode */}
@@ -155,7 +179,7 @@ export const DoctorSidebar = ({
                   "transition-all duration-200 flex-shrink-0",
                   isActive
                     ? "text-white"
-                    : "text-slate-400 group-hover:text-[#199A8E] group-hover:scale-110"
+                    : "text-slate-400 group-hover:text-[#199A8E] group-hover:scale-110",
                 )}
               />
 
@@ -177,19 +201,17 @@ export const DoctorSidebar = ({
         })}
       </nav>
 
-
-
       {/* Bottom Profile Section */}
       <div
         className={clsx(
           "border-t border-slate-100",
-          isCollapsed ? "p-2" : "p-4"
+          isCollapsed ? "p-2" : "p-4",
         )}
       >
         <div
           className={clsx(
             "bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-2xl border border-slate-100",
-            isCollapsed ? "p-2 space-y-2" : "p-4 space-y-3"
+            isCollapsed ? "p-2 space-y-2" : "p-4 space-y-3",
           )}
         >
           {!isCollapsed && (
@@ -202,7 +224,7 @@ export const DoctorSidebar = ({
                   {doctorName}
                 </p>
                 <p className="text-[10px] text-[#199A8E] font-semibold truncate">
-                  Cardiologist
+                  {specialization}
                 </p>
               </div>
               {/* Online indicator */}

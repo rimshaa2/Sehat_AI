@@ -12,7 +12,7 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const { connectDB } = require("./config/database");
-const { sequelize } = require("./models/index");
+const { sequelize, Appointment, Doctor } = require("./models/index");
 require("dotenv").config();
 
 const userRoutes          = require("./routes/userRoutes");
@@ -131,6 +131,14 @@ io.on("connection", (socket) => {
     console.log(`👨‍⚕️ Doctor/Admin ${socket.id} joined Emergency Channel`);
   });
 
+  // ── Global User Notifications ──────────────────────────────────────────────
+  socket.on("JOIN_USER_ROOM", ({ userId }) => {
+    if (!userId) return;
+    const roomName = `user_${userId}`;
+    socket.join(roomName);
+    console.log(`👤 User ${userId} joined global notification room`);
+  });
+
   // ── Doctor–Patient Live Chat Logic ───────────────────────────────────────────
   socket.on("JOIN_CHAT_ROOM", async ({ appointmentId, userId, role, name }) => {
     if (!appointmentId || !userId || !role) {
@@ -202,6 +210,21 @@ io.on("connection", (socket) => {
       const roomName = `chat_${appointmentId}`;
       io.to(roomName).emit("NEW_MESSAGE", payload);
       console.log(`💬 Message in ${roomName} from ${senderName}: ${(message || "[attachment]").substring(0, 50)}`);
+
+      // ── Notification: If a patient sends a message, ping the doctor ──────────
+      if (senderRole === "patient") {
+        const appointment = await Appointment.findByPk(appointmentId, {
+          include: [{ model: Doctor, as: "doctor" }]
+        });
+        if (appointment && appointment.doctor && appointment.doctor.userId) {
+          io.to(`user_${appointment.doctor.userId}`).emit("NEW_NOTIFICATION", {
+            type: "NEW_MESSAGE",
+            message: `New message from ${senderName}`,
+            appointmentId,
+            senderName,
+          });
+        }
+      }
     } catch (err) {
       console.error("Failed to save chat message:", err);
       socket.emit("CHAT_ERROR", { error: "Message could not be delivered" });

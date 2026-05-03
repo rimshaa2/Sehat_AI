@@ -7,14 +7,18 @@ interface AuthContextType {
   user: FirebaseUser | null;
   role: 'admin' | 'doctor' | 'patient' | null;
   loading: boolean;
+  dbUserId: number | null;
+  dbUserName: string | null;
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, role: null, loading: true });
+const AuthContext = createContext<AuthContextType>({ user: null, role: null, loading: true, dbUserId: null, dbUserName: null });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [role, setRole] = useState<AuthContextType['role']>(null);
   const [loading, setLoading] = useState(true);
+  const [dbUserId, setDbUserId] = useState<number | null>(null);
+  const [dbUserName, setDbUserName] = useState<string | null>(null);
 
   useEffect(() => {
     const auth = getAuth();
@@ -31,14 +35,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           // 2. Ask Backend: "Who is this?"
           const response = await api.post('/users/sync', { idToken: token });
           
-          // 3. Save Role
-          setRole(response.data.user.role); 
+          // 3. Save Role + DB user metadata
+          setRole(response.data.user.role);
+          setDbUserId(response.data.user.id ?? null);
+          setDbUserName(response.data.user.fullName ?? response.data.user.name ?? null);
         } catch (error) {
           console.error("Failed to fetch role:", error);
           setRole(null);
+          setDbUserId(null);
+          setDbUserName(null);
         }
       } else {
         setRole(null);
+        setDbUserId(null);
+        setDbUserName(null);
       }
       setLoading(false);
     });
@@ -47,7 +57,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, role, loading }}>
+    <AuthContext.Provider value={{ user, role, loading, dbUserId, dbUserName }}>
       {!loading && children}
     </AuthContext.Provider>
   );

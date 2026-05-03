@@ -15,25 +15,36 @@ import {
   User,
   Stethoscope,
   X,
+  FilePlus,
 } from "lucide-react";
 import api from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
 import toast from "react-hot-toast";
+import { ChatPanel } from "../../components/chat/ChatPanel";
 
 type TabType = "today" | "upcoming" | "history";
 
 export const MyAppointments = () => {
-  const { user } = useAuth();
+  const { user, dbUserId, dbUserName } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("today");
   const [searchQuery, setSearchQuery] = useState("");
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [chatAppointment, setChatAppointment] = useState<any | null>(null);
   const [statsData, setStatsData] = useState({
     today: 0,
     confirmed: 0,
     pending: 0,
     teleconsults: 0,
   });
+
+  // Medical Notes State
+  const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
+  const [selectedAptForNotes, setSelectedAptForNotes] = useState<any>(null);
+  const [noteType, setNoteType] = useState("Prescription");
+  const [noteTitle, setNoteTitle] = useState("");
+  const [noteDetails, setNoteDetails] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
 
   useEffect(() => {
     if (user?.uid) {
@@ -51,6 +62,39 @@ export const MyAppointments = () => {
     } catch (error) {
       toast.error(`Failed to update appointment status`);
       console.error(error);
+    }
+  };
+
+  const handleSaveNote = async () => {
+    if (!noteTitle || !noteDetails) {
+      toast.error("Please fill in the title and details.");
+      return;
+    }
+
+    try {
+      setSavingNote(true);
+      await api.post("/records/add", {
+        userId: selectedAptForNotes.patientId, // Get patientId from the appointment
+        title: noteTitle,
+        doctor_name: dbUserName || "Doctor",
+        record_date: new Date().toISOString().split("T")[0],
+        record_type: noteType,
+        details: noteDetails,
+      });
+
+      toast.success("Medical note added successfully!");
+      setIsNotesModalOpen(false);
+      
+      // Reset form
+      setNoteTitle("");
+      setNoteDetails("");
+      setNoteType("Prescription");
+      setSelectedAptForNotes(null);
+    } catch (error) {
+      toast.error("Failed to add medical note.");
+      console.error(error);
+    } finally {
+      setSavingNote(false);
     }
   };
 
@@ -441,6 +485,18 @@ export const MyAppointments = () => {
                                 Cancel
                               </button>
                             )}
+                            {apt.status === "completed" && (
+                              <button
+                                onClick={() => {
+                                  setSelectedAptForNotes(apt);
+                                  setIsNotesModalOpen(true);
+                                }}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-[#199A8E]/10 text-[#199A8E] rounded-xl text-xs font-semibold hover:bg-[#199A8E]/20 transition-all duration-200"
+                              >
+                                <FilePlus size={14} />
+                                Add Medical Note
+                              </button>
+                            )}
                             <button className="inline-flex items-center gap-2 px-4 py-2 bg-[#483D8B]/8 text-[#483D8B] border border-[#483D8B]/15 rounded-xl text-xs font-semibold hover:bg-[#483D8B]/15 transition-all duration-200">
                               <Video size={14} />
                               Start Teleconsult
@@ -452,7 +508,10 @@ export const MyAppointments = () => {
                               <Phone size={13} />
                               <span className="hidden md:inline">Call</span>
                             </button>
-                            <button className="inline-flex items-center gap-1.5 px-3 py-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg text-xs font-medium transition-all">
+                            <button
+                              onClick={() => setChatAppointment(apt)}
+                              className="inline-flex items-center gap-1.5 px-3 py-2 text-slate-500 hover:text-[#199A8E] hover:bg-[#199A8E]/8 rounded-lg text-xs font-medium transition-all"
+                            >
                               <MessageSquare size={13} />
                               <span className="hidden md:inline">Message</span>
                             </button>
@@ -504,6 +563,104 @@ export const MyAppointments = () => {
             ) : null}
           </div>
         </>
+      )}
+
+      {/* Chat Panel Overlay */}
+      {chatAppointment && dbUserId !== null && (
+        <ChatPanel
+          appointment={chatAppointment}
+          doctorDbId={dbUserId}
+          doctorName={dbUserName || user?.displayName || "Doctor"}
+          onClose={() => setChatAppointment(null)}
+        />
+      )}
+
+      {/* Medical Notes Modal */}
+      {isNotesModalOpen && selectedAptForNotes && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm transition-all duration-300">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <h2 className="text-lg font-bold text-slate-800">Add Medical Note</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  For {selectedAptForNotes.patient?.fullName || "Patient"} on{" "}
+                  {new Date(selectedAptForNotes.rawDate || selectedAptForNotes.appointmentDate).toLocaleDateString()}
+                </p>
+              </div>
+              <button
+                onClick={() => setIsNotesModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-white rounded-xl transition-all shadow-sm"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
+                  Record Type
+                </label>
+                <select
+                  value={noteType}
+                  onChange={(e) => setNoteType(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:ring-2 focus:ring-[#199A8E]/20 focus:border-[#199A8E] outline-none transition-all"
+                >
+                  <option value="Prescription">Prescription</option>
+                  <option value="Lab Reports">Lab Report</option>
+                  <option value="General">General Note</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
+                  Title
+                </label>
+                <input
+                  type="text"
+                  value={noteTitle}
+                  onChange={(e) => setNoteTitle(e.target.value)}
+                  placeholder="e.g., Antibiotics Course"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:ring-2 focus:ring-[#199A8E]/20 focus:border-[#199A8E] outline-none transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
+                  Details / Prescriptions
+                </label>
+                <textarea
+                  value={noteDetails}
+                  onChange={(e) => setNoteDetails(e.target.value)}
+                  placeholder="Enter dosage, instructions, or findings..."
+                  rows={5}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:ring-2 focus:ring-[#199A8E]/20 focus:border-[#199A8E] outline-none transition-all resize-none"
+                ></textarea>
+              </div>
+            </div>
+
+            <div className="px-6 py-5 bg-slate-50/50 border-t border-slate-100 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setIsNotesModalOpen(false)}
+                disabled={savingNote}
+                className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveNote}
+                disabled={savingNote}
+                className="inline-flex items-center justify-center px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-[#199A8E] to-[#15857a] rounded-xl shadow-md shadow-[#199A8E]/20 hover:shadow-lg hover:shadow-[#199A8E]/30 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {savingNote ? (
+                  <RefreshCcw size={16} className="animate-spin mr-2" />
+                ) : (
+                  <Check size={16} className="mr-2" />
+                )}
+                {savingNote ? "Saving..." : "Save Note"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
