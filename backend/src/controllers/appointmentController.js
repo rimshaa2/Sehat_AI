@@ -156,7 +156,15 @@ exports.getMyAppointments = async (req, res) => {
         include: [{ model: User, as: "user", attributes: ["fullName", "email"] }],
       });
     } else {
-      include.push({ model: User, as: "patient", attributes: ["fullName", "email"] });
+      include.push({ 
+        model: User, 
+        as: "patient", 
+        attributes: [
+          "fullName", "email", "phoneNumber", "gender", "dateOfBirth",
+          "weight", "height", "bloodType", "medicalHistory", "allergies",
+          "emergencyContact"
+        ] 
+      });
     }
 
     const appointments = await Appointment.findAll({
@@ -217,6 +225,11 @@ exports.updateAppointmentStatus = async (req, res) => {
 
     const appt = await Appointment.findByPk(id);
     if (!appt) return res.status(404).json({ error: "Appointment not found" });
+
+    const dbUser = await getAuthenticatedDbUser(req);
+    if (dbUser.role !== "admin" && dbUser.id !== appt.doctorId) {
+      return res.status(403).json({ error: "You are not authorized to update this appointment." });
+    }
 
     if (status) appt.status = status;
     if (paymentStatus) appt.paymentStatus = paymentStatus;

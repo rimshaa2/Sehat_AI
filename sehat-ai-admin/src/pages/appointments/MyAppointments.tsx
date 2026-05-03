@@ -54,9 +54,30 @@ export const MyAppointments = () => {
     }
   }, [user]);
 
+  const isPastAppointment = (date: string, time: string) => {
+    try {
+      const today = new Date();
+      const [hourMin, ampm] = time.split(" ");
+      let [hours, minutes] = hourMin.split(":").map(Number);
+      if (ampm === "PM" && hours !== 12) hours += 12;
+      if (ampm === "AM" && hours === 12) hours = 0;
+
+      const aptDate = new Date(date);
+      aptDate.setHours(hours, minutes, 0, 0);
+
+      return today > aptDate;
+    } catch (e) {
+      return false;
+    }
+  };
+
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
-      await api.patch(`/appointments/${id}/status`, { status });
+      if (status === "cancelled") {
+        await api.patch(`/appointments/${id}/cancel`);
+      } else {
+        await api.patch(`/appointments/${id}/status`, { status });
+      }
       toast.success(`Appointment marked as ${status}`);
       fetchAppointments();
     } catch (error) {
@@ -84,7 +105,7 @@ export const MyAppointments = () => {
 
       toast.success("Medical note added successfully!");
       setIsNotesModalOpen(false);
-      
+
       // Reset form
       setNoteTitle("");
       setNoteDetails("");
@@ -107,10 +128,12 @@ export const MyAppointments = () => {
 
       setAppointments(data || []);
 
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = new Date().toISOString().split("T")[0];
       setStatsData({
-        today: data.filter((a: any) => a.appointmentDate === todayStr).length || 0,
-        confirmed: data.filter((a: any) => a.status === "completed").length || 0,
+        today:
+          data.filter((a: any) => a.appointmentDate === todayStr).length || 0,
+        confirmed:
+          data.filter((a: any) => a.status === "completed").length || 0,
         pending: data.filter((a: any) => a.status === "scheduled").length || 0,
         teleconsults: 0,
       });
@@ -220,13 +243,14 @@ export const MyAppointments = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
-
-
           <div className="hidden md:flex items-center gap-2 text-xs text-slate-500 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
             <Calendar size={14} className="text-[#199A8E]" />
             <span className="font-semibold text-slate-700">
               {new Date().toLocaleDateString("en-US", {
-                weekday: "long", year: "numeric", month: "long", day: "numeric"
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
               })}
             </span>
           </div>
@@ -283,10 +307,11 @@ export const MyAppointments = () => {
                       <button
                         key={tab.key}
                         onClick={() => setActiveTab(tab.key)}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${isActive
-                          ? "bg-white text-[#199A8E] shadow-sm"
-                          : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
-                          }`}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                          isActive
+                            ? "bg-white text-[#199A8E] shadow-sm"
+                            : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                        }`}
                       >
                         <tab.icon size={15} />
                         {tab.label}
@@ -333,7 +358,12 @@ export const MyAppointments = () => {
               {appointments
                 .filter((apt: any) => {
                   // Text Search
-                  if (searchQuery && !apt.patient?.fullName?.toLowerCase().includes(searchQuery.toLowerCase())) {
+                  if (
+                    searchQuery &&
+                    !apt.patient?.fullName
+                      ?.toLowerCase()
+                      .includes(searchQuery.toLowerCase())
+                  ) {
                     return false;
                   }
 
@@ -343,11 +373,18 @@ export const MyAppointments = () => {
                   if (activeTab === "today") {
                     return apt.appointmentDate === todayStr;
                   } else if (activeTab === "upcoming") {
-                    // Show scheduled and cancelled in upcoming
-                    return apt.status === "scheduled" || apt.status === "cancelled";
+                    // Show scheduled in future
+                    const isPast = isPastAppointment(apt.appointmentDate, apt.timeSlot);
+                    return apt.status === "scheduled" && !isPast;
                   } else if (activeTab === "history") {
-                    // Show completed in history
-                    return apt.status === "completed" || apt.status === "no-show";
+                    // Show completed, cancelled, no-show, OR past scheduled
+                    const isPast = isPastAppointment(apt.appointmentDate, apt.timeSlot);
+                    return (
+                      apt.status === "completed" || 
+                      apt.status === "no-show" || 
+                      apt.status === "cancelled" ||
+                      (apt.status === "scheduled" && isPast)
+                    );
                   }
 
                   return true;
@@ -365,7 +402,8 @@ export const MyAppointments = () => {
                   const aptTime = apt.timeSlot || "N/A";
                   const aptReason = apt.reason || "General Consultation";
                   const aptHistory = "No history provided."; // Not in standard fetch
-                  const aptType = aptReason.length > 20 ? "Consultation" : aptReason;
+                  const aptType =
+                    aptReason.length > 20 ? "Consultation" : aptReason;
 
                   return (
                     <div
@@ -471,16 +509,33 @@ export const MyAppointments = () => {
                           <div className="flex items-center flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
                             {apt.status === "scheduled" && (
                               <button
-                                onClick={() => handleUpdateStatus(apt.id, "completed")}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-[#199A8E] text-white rounded-xl text-xs font-semibold hover:bg-[#15857a] shadow-sm shadow-[#199A8E]/20 transition-all duration-200 hover:shadow-md hover:shadow-[#199A8E]/25">
+                                onClick={() =>
+                                  handleUpdateStatus(apt.id, "completed")
+                                }
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-[#199A8E] text-white rounded-xl text-xs font-semibold hover:bg-[#15857a] shadow-sm shadow-[#199A8E]/20 transition-all duration-200 hover:shadow-md hover:shadow-[#199A8E]/25"
+                              >
                                 <Check size={14} />
                                 Complete
                               </button>
                             )}
+                            {apt.status === "scheduled" && isPastAppointment(apt.appointmentDate, apt.timeSlot) && (
+                              <button
+                                onClick={() =>
+                                  handleUpdateStatus(apt.id, "no-show")
+                                }
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl text-xs font-semibold hover:bg-amber-100 transition-all duration-200"
+                              >
+                                <Activity size={14} />
+                                No Show
+                              </button>
+                            )}
                             {apt.status === "scheduled" && (
                               <button
-                                onClick={() => handleUpdateStatus(apt.id, "cancelled")}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-xs font-semibold hover:bg-red-100 transition-all duration-200">
+                                onClick={() =>
+                                  handleUpdateStatus(apt.id, "cancelled")
+                                }
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-xs font-semibold hover:bg-red-100 transition-all duration-200"
+                              >
                                 <X size={14} />
                                 Cancel
                               </button>
@@ -497,17 +552,9 @@ export const MyAppointments = () => {
                                 Add Medical Note
                               </button>
                             )}
-                            <button className="inline-flex items-center gap-2 px-4 py-2 bg-[#483D8B]/8 text-[#483D8B] border border-[#483D8B]/15 rounded-xl text-xs font-semibold hover:bg-[#483D8B]/15 transition-all duration-200">
-                              <Video size={14} />
-                              Start Teleconsult
-                            </button>
 
                             <div className="hidden sm:block w-px h-5 bg-slate-200 mx-1" />
 
-                            <button className="inline-flex items-center gap-1.5 px-3 py-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg text-xs font-medium transition-all">
-                              <Phone size={13} />
-                              <span className="hidden md:inline">Call</span>
-                            </button>
                             <button
                               onClick={() => setChatAppointment(apt)}
                               className="inline-flex items-center gap-1.5 px-3 py-2 text-slate-500 hover:text-[#199A8E] hover:bg-[#199A8E]/8 rounded-lg text-xs font-medium transition-all"
@@ -529,13 +576,16 @@ export const MyAppointments = () => {
 
             {/* Empty State Fallback (when list would be empty) */}
             {appointments.length > 0 &&
-              appointments.filter((apt: any) => {
-                const todayStr = new Date().toISOString().split("T")[0];
-                if (activeTab === "today") return apt.appointmentDate === todayStr;
-                if (activeTab === "upcoming") return apt.status === "scheduled" || apt.status === "cancelled";
-                if (activeTab === "history") return apt.status === "completed" || apt.status === "no-show";
-                return true;
-              }).length === 0 ? (
+            appointments.filter((apt: any) => {
+              const todayStr = new Date().toISOString().split("T")[0];
+              if (activeTab === "today")
+                return apt.appointmentDate === todayStr;
+              if (activeTab === "upcoming")
+                return apt.status === "scheduled" || apt.status === "cancelled";
+              if (activeTab === "history")
+                return apt.status === "completed" || apt.status === "no-show";
+              return true;
+            }).length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
                 <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
                   <Calendar size={28} className="text-slate-400" />
@@ -544,7 +594,8 @@ export const MyAppointments = () => {
                   No appointments found for this tab
                 </h3>
                 <p className="text-sm text-slate-500 max-w-sm">
-                  Try switching tabs or adjusting your filters to find what you're looking for.
+                  Try switching tabs or adjusting your filters to find what
+                  you're looking for.
                 </p>
               </div>
             ) : appointments.length === 0 ? (
@@ -556,8 +607,8 @@ export const MyAppointments = () => {
                   No appointments found
                 </h3>
                 <p className="text-sm text-slate-500 max-w-sm">
-                  You don't have any appointments scheduled for this period. Check
-                  back later or try a different filter.
+                  You don't have any appointments scheduled for this period.
+                  Check back later or try a different filter.
                 </p>
               </div>
             ) : null}
@@ -581,10 +632,15 @@ export const MyAppointments = () => {
           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div>
-                <h2 className="text-lg font-bold text-slate-800">Add Medical Note</h2>
+                <h2 className="text-lg font-bold text-slate-800">
+                  Add Medical Note
+                </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
                   For {selectedAptForNotes.patient?.fullName || "Patient"} on{" "}
-                  {new Date(selectedAptForNotes.rawDate || selectedAptForNotes.appointmentDate).toLocaleDateString()}
+                  {new Date(
+                    selectedAptForNotes.rawDate ||
+                      selectedAptForNotes.appointmentDate,
+                  ).toLocaleDateString()}
                 </p>
               </div>
               <button
