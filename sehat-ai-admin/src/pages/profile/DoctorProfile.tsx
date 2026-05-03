@@ -13,18 +13,23 @@ import {
     Save,
     X,
     Loader2,
+    Shield,
+    Key,
 } from "lucide-react";
 import api from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
 import toast from "react-hot-toast";
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendPasswordResetEmail } from "firebase/auth";
+import { auth } from "../../lib/firebase";
 
-type TabKey = "personal" | "professional" | "qualifications" | "notifications";
+type TabKey = "personal" | "professional" | "qualifications" | "notifications" | "security";
 
 const TABS: { key: TabKey; label: string }[] = [
     { key: "personal", label: "Personal Info" },
     { key: "professional", label: "Professional" },
     { key: "qualifications", label: "Qualifications" },
     { key: "notifications", label: "Notifications" },
+    { key: "security", label: "Security" },
 ];
 
 export const DoctorProfile = () => {
@@ -33,6 +38,64 @@ export const DoctorProfile = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+
+    const [currentPassword, setCurrentPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
+    
+    const hasPasswordProvider = user?.providerData?.some(p => p.providerId === "password");
+
+    const handleChangePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (newPassword !== confirmPassword) {
+            toast.error("New passwords do not match!");
+            return;
+        }
+        if (!user || !user.email) return;
+
+        setIsChangingPassword(true);
+        try {
+            if (hasPasswordProvider) {
+                if (!currentPassword) {
+                    toast.error("Please enter your current password.");
+                    setIsChangingPassword(false);
+                    return;
+                }
+                const credential = EmailAuthProvider.credential(user.email, currentPassword);
+                await reauthenticateWithCredential(user, credential);
+            }
+            
+            await updatePassword(user, newPassword);
+            toast.success("Password updated successfully!");
+            setCurrentPassword("");
+            setNewPassword("");
+            setConfirmPassword("");
+        } catch (error: any) {
+            console.error("Change password error:", error);
+            if (error.code === 'auth/requires-recent-login') {
+                toast.error("Please log out and log back in to change your password.");
+            } else if (error.code === 'auth/wrong-password') {
+                toast.error("Incorrect current password.");
+            } else if (error.code === 'auth/weak-password') {
+                toast.error("New password is too weak. Must be at least 6 characters.");
+            } else {
+                toast.error("Failed to update password. " + error.message);
+            }
+        } finally {
+            setIsChangingPassword(false);
+        }
+    };
+
+    const handleSendResetEmail = async () => {
+        if (!user?.email) return;
+        try {
+            await sendPasswordResetEmail(auth, user.email);
+            toast.success("Password reset email sent! Check your inbox.");
+        } catch (error: any) {
+            toast.error("Failed to send reset email: " + error.message);
+        }
+    };
 
     const [profile, setProfile] = useState({
         fullName: "",
@@ -480,6 +543,94 @@ export const DoctorProfile = () => {
                                 Configure how and when you receive appointment and system
                                 notifications. Coming soon.
                             </p>
+                        </div>
+                    )}
+
+                    {activeTab === "security" && (
+                        <div className="space-y-6">
+                            <div className="flex items-center gap-2 text-slate-800 mb-6">
+                                <Shield size={18} />
+                                <h3 className="text-base font-bold">Security Settings</h3>
+                            </div>
+
+                            <div className="max-w-md bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                                <h4 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                    <Key size={16} className="text-[#199A8E]" />
+                                    Change Password
+                                </h4>
+                                
+                                {!hasPasswordProvider && (
+                                    <div className="mb-6 p-4 bg-blue-50 text-blue-800 rounded-xl text-sm border border-blue-100">
+                                        You signed in using Google. You can set a password for your account, or send a password reset email to yourself.
+                                    </div>
+                                )}
+
+                                <form onSubmit={handleChangePassword} className="space-y-4">
+                                    {hasPasswordProvider && (
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                                Current Password
+                                            </label>
+                                            <input
+                                                type="password"
+                                                value={currentPassword}
+                                                onChange={(e) => setCurrentPassword(e.target.value)}
+                                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#199A8E]/30 focus:border-[#199A8E] transition-all"
+                                                required
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                            New Password
+                                        </label>
+                                        <input
+                                            type="password"
+                                            value={newPassword}
+                                            onChange={(e) => setNewPassword(e.target.value)}
+                                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#199A8E]/30 focus:border-[#199A8E] transition-all"
+                                            required
+                                            minLength={6}
+                                        />
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                            Confirm New Password
+                                        </label>
+                                        <input
+                                            type="password"
+                                            value={confirmPassword}
+                                            onChange={(e) => setConfirmPassword(e.target.value)}
+                                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#199A8E]/30 focus:border-[#199A8E] transition-all"
+                                            required
+                                            minLength={6}
+                                        />
+                                    </div>
+
+                                    <div className="pt-2 flex items-center gap-3">
+                                        <button
+                                            type="submit"
+                                            disabled={isChangingPassword}
+                                            className="flex-1 px-4 py-2.5 bg-[#199A8E] text-white rounded-xl text-sm font-bold hover:bg-[#15857a] shadow-lg shadow-emerald-100 transition-all active:scale-95 disabled:opacity-70 flex justify-center items-center"
+                                        >
+                                            {isChangingPassword ? <Loader2 size={16} className="animate-spin" /> : "Update Password"}
+                                        </button>
+                                        
+                                        {!hasPasswordProvider && (
+                                            <button
+                                                type="button"
+                                                onClick={handleSendResetEmail}
+                                                className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all active:scale-95"
+                                                title="Send Password Reset Email"
+                                            >
+                                                <Mail size={16} />
+                                            </button>
+                                        )}
+                                    </div>
+                                </form>
+                            </div>
                         </div>
                     )}
                 </div>
