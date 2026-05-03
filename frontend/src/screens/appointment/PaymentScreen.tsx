@@ -26,18 +26,13 @@ import {
   Shield,
 } from "lucide-react-native";
 import auth from "@react-native-firebase/auth";
+import * as ImagePicker from "expo-image-picker";
 import { bookAppointment as apiBookAppointment, getUserProfile } from "../../services/api";
-
-// ── Safepay config (card payments only) ──────────────────────────────────────
-const SAFEPAY_CLIENT_KEY  = "sec_1669cd0d-f281-4ede-97e7-726a7238c14e";
-const SAFEPAY_BASE        = "https://sandbox.api.getsafepay.com"; // swap for prod
 
 // ── Payment methods ───────────────────────────────────────────────────────────
 const PAYMENT_METHODS = [
   { id: "cash",      label: "Cash on Visit",        desc: "Pay at the clinic",              icon: "cash"   },
-  { id: "card",      label: "Credit / Debit Card",  desc: "Via Safepay secure checkout",    icon: "card"   },
-  { id: "easypaisa", label: "EasyPaisa",             desc: "Pay via mobile wallet",          icon: "mobile" },
-  { id: "jazzcash",  label: "JazzCash",              desc: "Pay via mobile wallet",          icon: "mobile" },
+  { id: "bank",      label: "Bank Transfer",        desc: "Upload payment receipt",         icon: "card"   },
 ];
 
 export default ({ navigation, route = { params: {} } }: any) => {
@@ -45,7 +40,7 @@ export default ({ navigation, route = { params: {} } }: any) => {
 
   const [isLoading,      setIsLoading]      = useState(false);
   const [selectedMethod, setSelectedMethod] = useState("cash");
-  const [walletNumber,   setWalletNumber]   = useState("");
+  const [receiptBase64,  setReceiptBase64]  = useState("");
 
   const consultationFee = doctor?.priceValue || 2500;
   const adminFee        = 100;
@@ -78,6 +73,7 @@ export default ({ navigation, route = { params: {} } }: any) => {
       amount:          total,
       paymentMethod:   selectedMethod,
       paymentStatus:   paymentStatus,
+      receiptImage:    receiptBase64 || undefined,
     };
 
     console.log("🚀 Booking Payload:", payload);
@@ -99,18 +95,16 @@ export default ({ navigation, route = { params: {} } }: any) => {
     }
   };
 
-  // ── WALLET (EasyPaisa / JazzCash) — collect number in-app, then book ─────
-  const handleWallet = async () => {
-    if (walletNumber.length < 11) {
-      Alert.alert("Invalid Number", "Please enter a valid 11-digit mobile number.");
+  // ── BANK — upload receipt and book ──────────────────────────────────────────
+  const handleBank = async () => {
+    if (!receiptBase64) {
+      Alert.alert("Receipt Required", "Please upload the payment receipt to proceed.");
       return;
     }
     setIsLoading(true);
     try {
-      // In a real integration you'd call the wallet API here.
-      // For now we confirm the booking and mark it paid (simulate success).
-      await submitBooking("completed");
-      navigation.replace("BookingSuccess", { doctor, date, time, paymentMethod: selectedMethod });
+      await submitBooking("pending");
+      navigation.replace("BookingSuccess", { doctor, date, time, paymentMethod: "bank" });
     } catch (err: any) {
       Alert.alert("Booking Failed", err.response?.data?.error || err.message || "Something went wrong.");
     } finally {
@@ -118,63 +112,32 @@ export default ({ navigation, route = { params: {} } }: any) => {
     }
   };
 
-  // ── CARD — open Safepay browser, confirm on return ────────────────────────
-  const handleCard = async () => {
-    const orderId = generateOrderId();
-    const checkoutUrl =
-      `${SAFEPAY_BASE}/pay?` +
-      `client_key=${SAFEPAY_CLIENT_KEY}` +
-      `&amount=${total}` +
-      `&currency=PKR` +
-      `&order_id=${orderId}` +
-      `&source=mobile`;
-
-    try {
-      const supported = await Linking.canOpenURL(checkoutUrl);
-      if (!supported) { Alert.alert("Error", "Cannot open browser on this device."); return; }
-
-      await Linking.openURL(checkoutUrl);
-
-      setTimeout(() => {
-        Alert.alert(
-          "Confirm Booking",
-          "Once your card payment is complete in the browser, tap confirm below.",
-          [
-            {
-              text: "✅ Payment Done — Confirm",
-              onPress: async () => {
-                setIsLoading(true);
-                try {
-                  await submitBooking("completed");
-                  navigation.replace("BookingSuccess", { doctor, date, time, paymentMethod: "card" });
-                } catch (err: any) {
-                  Alert.alert("Booking Failed", err.response?.data?.error || err.message || "Something went wrong.");
-                } finally {
-                  setIsLoading(false);
-                }
-              },
-            },
-            { text: "❌ Cancel", style: "cancel" },
-          ]
-        );
-      }, 1500);
-    } catch (err: any) {
-      Alert.alert("Error", "Could not open payment page. Please try again.");
+  const handlePickReceipt = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permissionResult.granted === false) {
+      Alert.alert("Permission Required", "Permission to access camera roll is required!");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.5,
+      base64: true,
+    });
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setReceiptBase64(`data:image/jpeg;base64,${result.assets[0].base64}`);
     }
   };
 
   // ── Main confirm handler ──────────────────────────────────────────────────
   const handleConfirm = () => {
-    if (selectedMethod === "cash")                                    return handleCash();
-    if (selectedMethod === "easypaisa" || selectedMethod === "jazzcash") return handleWallet();
-    if (selectedMethod === "card")                                    return handleCard();
+    if (selectedMethod === "cash") return handleCash();
+    if (selectedMethod === "bank") return handleBank();
   };
 
   const confirmLabel = () => {
-    if (selectedMethod === "cash")      return "Confirm Booking";
-    if (selectedMethod === "card")      return "Pay with Card";
-    if (selectedMethod === "easypaisa") return "Confirm EasyPaisa Payment";
-    if (selectedMethod === "jazzcash")  return "Confirm JazzCash Payment";
+    if (selectedMethod === "cash") return "Confirm Booking";
+    if (selectedMethod === "bank") return "Confirm & Upload";
     return "Confirm";
   };
 
@@ -272,7 +235,7 @@ export default ({ navigation, route = { params: {} } }: any) => {
             <TouchableOpacity
               key={method.id}
               style={[styles.methodCard, selectedMethod === method.id && styles.methodCardActive]}
-              onPress={() => { setSelectedMethod(method.id); setWalletNumber(""); }}
+              onPress={() => { setSelectedMethod(method.id); setReceiptBase64(""); }}
             >
               <PaymentIcon type={method.icon} />
               <View style={{ flex: 1, marginLeft: 12 }}>
@@ -286,28 +249,26 @@ export default ({ navigation, route = { params: {} } }: any) => {
           ))}
         </View>
 
-        {/* Wallet number input — shown only for EasyPaisa / JazzCash */}
-        {(selectedMethod === "easypaisa" || selectedMethod === "jazzcash") && (
+        {/* Bank details and receipt upload */}
+        {selectedMethod === "bank" && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              {selectedMethod === "easypaisa" ? "EasyPaisa" : "JazzCash"} Number
-            </Text>
+            <Text style={styles.sectionTitle}>Bank Details</Text>
             <View style={styles.walletCard}>
-              <Text style={styles.inputLabel}>Registered Mobile Number</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="03XXXXXXXXX"
-                placeholderTextColor="#9CA3AF"
-                value={walletNumber}
-                onChangeText={(t) => setWalletNumber(t.replace(/\D/g, "").slice(0, 11))}
-                keyboardType="numeric"
-                maxLength={11}
-              />
-              <View style={styles.walletNote}>
-                <Text style={styles.walletNoteText}>
-                  A confirmation request of Rs. {total} will be sent to this number.
-                </Text>
-              </View>
+              <Text style={{ fontSize: 13, color: "#4B5563", marginBottom: 4 }}>Bank Name: <Text style={{ fontWeight: "700" }}>Meezan Bank</Text></Text>
+              <Text style={{ fontSize: 13, color: "#4B5563", marginBottom: 4 }}>Account Title: <Text style={{ fontWeight: "700" }}>Sehat AI</Text></Text>
+              <Text style={{ fontSize: 13, color: "#4B5563", marginBottom: 16 }}>Account No: <Text style={{ fontWeight: "700" }}>0123456789</Text></Text>
+
+              <Text style={styles.inputLabel}>Upload Receipt</Text>
+              <TouchableOpacity onPress={handlePickReceipt} style={{ borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 10, borderStyle: "dashed", overflow: "hidden", backgroundColor: "#FAFAFA" }}>
+                {receiptBase64 ? (
+                  <Image source={{ uri: receiptBase64 }} style={{ width: '100%', height: 160 }} resizeMode="cover" />
+                ) : (
+                  <View style={{ padding: 24, alignItems: 'center' }}>
+                    <Text style={{ color: "#199A8E", fontWeight: "600" }}>+ Select Image</Text>
+                    <Text style={{ color: "#9CA3AF", fontSize: 12, marginTop: 4 }}>JPG, PNG up to 5MB</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -320,10 +281,10 @@ export default ({ navigation, route = { params: {} } }: any) => {
             </Text>
           </View>
         )}
-        {selectedMethod === "card" && (
+        {selectedMethod === "bank" && (
           <View style={styles.infoBanner}>
             <Text style={styles.infoBannerText}>
-              🔒 You'll be taken to Safepay's secure browser checkout. Return here after paying to confirm your booking.
+              🏦 Transfer the exact amount to the bank account above and upload the receipt to secure your slot.
             </Text>
           </View>
         )}

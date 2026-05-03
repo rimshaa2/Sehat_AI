@@ -38,6 +38,7 @@ exports.bookAppointment = async (req, res) => {
       amount,
       paymentMethod  = "cash",
       paymentStatus  = "pending",
+      receiptImage,
     } = req.body;
 
     const normalizedPatientId = Number(patientId);
@@ -69,7 +70,9 @@ exports.bookAppointment = async (req, res) => {
         reason,
         amount,
         status: "scheduled",
+        paymentMethod,
         paymentStatus,
+        receiptImage,
       },
       { transaction: t },
     );
@@ -79,12 +82,13 @@ exports.bookAppointment = async (req, res) => {
 
     // ── FCM: send confirmation push to patient ─────────────────────────────
     // Fire-and-forget; never block the HTTP response.               ← FCM
+    let doctorRecord = null;
     try {                                                            // ← FCM
-      const doctor = await Doctor.findOne({                         // ← FCM
+      doctorRecord = await Doctor.findOne({                         // ← FCM
         where: { id: doctorId },                                    // ← FCM
         include: [{ model: User, as: 'user', attributes: ['fullName'] }], // ← FCM
       });                                                            // ← FCM
-      const doctorName = doctor?.user?.fullName || 'your doctor';   // ← FCM
+      const doctorName = doctorRecord?.user?.fullName || 'your doctor';   // ← FCM
       await sendAppointmentConfirmation(                             // ← FCM
         dbUser,                                                      // ← FCM
         newAppointment,                                              // ← FCM
@@ -97,8 +101,8 @@ exports.bookAppointment = async (req, res) => {
 
     // ── SOCKET.IO: Real-time notification for the doctor ──────────────────
     const io = req.app.get("io");
-    if (io && doctor && doctor.userId) {
-      io.to(`user_${doctor.userId}`).emit("NEW_NOTIFICATION", {
+    if (io && doctorRecord && doctorRecord.userId) {
+      io.to(`user_${doctorRecord.userId}`).emit("NEW_NOTIFICATION", {
         type: "NEW_APPOINTMENT",
         message: `New appointment booked by patient`,
         appointmentId: newAppointment.id
@@ -193,6 +197,9 @@ exports.getAllAppointmentsAdmin = async (req, res) => {
       type:     apt.reason   || "General Checkup",
       location: apt.meetingLink || "In-Clinic",
       status:   apt.status,
+      paymentMethod: apt.paymentMethod,
+      paymentStatus: apt.paymentStatus,
+      receiptImage:  apt.receiptImage,
     }));
 
     res.json(formatted);
@@ -206,15 +213,17 @@ exports.getAllAppointmentsAdmin = async (req, res) => {
 exports.updateAppointmentStatus = async (req, res) => {
   try {
     const { id }     = req.params;
-    const { status } = req.body;
+    const { status, paymentStatus } = req.body;
 
     const appt = await Appointment.findByPk(id);
     if (!appt) return res.status(404).json({ error: "Appointment not found" });
 
-    appt.status = status;
+    if (status) appt.status = status;
+    if (paymentStatus) appt.paymentStatus = paymentStatus;
+    
     await appt.save();
 
-    res.json({ success: true, message: `Appointment status updated to ${status}`, appointment: appt });
+    res.json({ success: true, message: `Appointment status updated`, appointment: appt });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

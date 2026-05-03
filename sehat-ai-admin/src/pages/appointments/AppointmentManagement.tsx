@@ -73,6 +73,20 @@ export const AppointmentsManagement = () => {
     }
   };
 
+  const handleApprovePayment = async (id: string) => {
+    try {
+      await api.patch(`/appointments/${id}/status`, {
+        status: "scheduled",
+        paymentStatus: "completed"
+      });
+      toast.success("Payment approved and appointment confirmed!");
+      setViewedAppointment(null);
+      fetchAppointments();
+    } catch (error) {
+      toast.error("Failed to approve payment");
+    }
+  };
+
   const handleExport = () => {
     if (appointments.length === 0) {
       toast.error("No appointments to export.");
@@ -437,14 +451,14 @@ export const AppointmentsManagement = () => {
       {/* View Modal */}
       {viewedAppointment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-300">
-            <div className="flex justify-between items-center p-6 border-b border-slate-100">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
               <h3 className="font-bold text-lg">Appointment Details</h3>
               <button onClick={() => setViewedAppointment(null)} className="p-2 hover:bg-slate-100 rounded-full">
                 <X size={20} />
               </button>
             </div>
-            <div className="p-6 space-y-4 text-sm">
+            <div className="p-6 space-y-4 text-sm overflow-y-auto">
               <div className="flex justify-between"><span className="text-slate-500 text-xs font-bold uppercase">Patient</span><span className="font-medium text-right">{viewedAppointment.patientName}</span></div>
               <div className="flex justify-between"><span className="text-slate-500 text-xs font-bold uppercase">Phone</span><span className="font-medium text-right">{viewedAppointment.patientPhone}</span></div>
               <div className="flex justify-between"><span className="text-slate-500 text-xs font-bold uppercase">Doctor</span><span className="font-medium text-right">{viewedAppointment.doctorName}</span></div>
@@ -454,8 +468,19 @@ export const AppointmentsManagement = () => {
               <div className="flex justify-between"><span className="text-slate-500 text-xs font-bold uppercase">Type</span><span className="font-medium text-right">{viewedAppointment.type}</span></div>
               <div className="flex justify-between"><span className="text-slate-500 text-xs font-bold uppercase">Location</span><span className="font-medium text-right">{viewedAppointment.location}</span></div>
               <div className="flex justify-between"><span className="text-slate-500 text-xs font-bold uppercase">Status</span><span className="font-medium text-right">{viewedAppointment.status}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500 text-xs font-bold uppercase">Payment Method</span><span className="font-medium text-right uppercase">{viewedAppointment.paymentMethod || 'cash'}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500 text-xs font-bold uppercase">Payment Status</span><span className="font-medium text-right uppercase">{viewedAppointment.paymentStatus || 'pending'}</span></div>
+              {viewedAppointment.paymentMethod === 'bank' && viewedAppointment.receiptImage && (
+                <div className="mt-4">
+                  <span className="text-slate-500 text-xs font-bold uppercase block mb-2">Payment Receipt</span>
+                  <img src={viewedAppointment.receiptImage} alt="Receipt" className="w-full rounded-xl border border-slate-200" style={{ maxHeight: '300px', objectFit: 'contain' }} />
+                </div>
+              )}
             </div>
-            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 flex-shrink-0">
+              {viewedAppointment.paymentMethod === 'bank' && viewedAppointment.paymentStatus === 'pending' && (
+                <button onClick={() => handleApprovePayment(viewedAppointment.id)} className="px-6 py-2 bg-[#199A8E] text-white hover:bg-emerald-600 rounded-xl font-bold transition-all shadow-lg shadow-emerald-200">Approve Payment</button>
+              )}
               <button onClick={() => setViewedAppointment(null)} className="px-6 py-2 bg-slate-200 hover:bg-slate-300 rounded-xl font-bold transition-all">Close</button>
             </div>
           </div>

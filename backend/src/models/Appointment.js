@@ -26,6 +26,15 @@ const Appointment = sequelize.define(
       type: DataTypes.ENUM("pending", "completed", "failed", "refunded"),
       defaultValue: "pending",
     },
+    paymentMethod: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: "cash",
+    },
+    receiptImage: {
+      type: DataTypes.TEXT('long'),
+      allowNull: true,
+    },
     amount: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
