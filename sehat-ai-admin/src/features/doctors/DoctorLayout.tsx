@@ -1,13 +1,21 @@
 import { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { DoctorSidebar } from "../../components/layout/DoctorSidebar";
-import { Menu, Bell, Search, User, MessageSquare, Calendar } from "lucide-react";
+import {
+  Menu,
+  Bell,
+  Search,
+  User,
+  MessageSquare,
+  Calendar,
+} from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { io } from "socket.io-client";
 import toast from "react-hot-toast";
 
 const SOCKET_URL = (() => {
-  const base = (import.meta.env.VITE_API_URL as string) || "http://localhost:5000/api";
+  const base =
+    (import.meta.env.VITE_API_URL as string) || "http://localhost:5000/api";
   return base.replace(/\/api\/?$/, "");
 })();
 
@@ -15,7 +23,9 @@ export const DoctorLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [notifications, setNotifications] = useState<{ id: string; message: string; type: string; time: Date }[]>([]);
+  const [notifications, setNotifications] = useState<
+    { id: string; message: string; type: string; time: Date }[]
+  >([]);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const { dbUserId } = useAuth();
 
@@ -31,7 +41,12 @@ export const DoctorLayout = () => {
     socket.on("NEW_NOTIFICATION", (data: any) => {
       setUnreadCount((prev) => prev + 1);
       setNotifications((prev) => [
-        { id: Date.now().toString() + Math.random(), message: data.message, type: data.type, time: new Date() },
+        {
+          id: Date.now().toString() + Math.random(),
+          message: data.message,
+          type: data.type,
+          time: new Date(),
+        },
         ...prev,
       ]);
       toast.success(data.message, {
@@ -115,9 +130,11 @@ export const DoctorLayout = () => {
               {isNotificationsOpen && (
                 <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50">
                   <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/50">
-                    <h3 className="font-semibold text-slate-800 text-sm">Notifications</h3>
+                    <h3 className="font-semibold text-slate-800 text-sm">
+                      Notifications
+                    </h3>
                     {notifications.length > 0 && (
-                      <button 
+                      <button
                         onClick={() => setNotifications([])}
                         className="text-[11px] font-medium text-[#199A8E] hover:text-[#15857a]"
                       >
@@ -131,20 +148,38 @@ export const DoctorLayout = () => {
                         <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
                           <Bell size={20} className="text-slate-300" />
                         </div>
-                        <p className="text-sm font-medium text-slate-600">No new notifications</p>
-                        <p className="text-xs text-slate-400 mt-1">You're all caught up!</p>
+                        <p className="text-sm font-medium text-slate-600">
+                          No new notifications
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
+                          You're all caught up!
+                        </p>
                       </div>
                     ) : (
                       <div className="divide-y divide-slate-50">
                         {notifications.map((notif) => (
-                          <div key={notif.id} className="px-4 py-3 hover:bg-slate-50 transition-colors flex gap-3 items-start">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${notif.type === 'NEW_APPOINTMENT' ? 'bg-blue-50 text-blue-500' : 'bg-[#199A8E]/10 text-[#199A8E]'}`}>
-                              {notif.type === 'NEW_APPOINTMENT' ? <Calendar size={14} /> : <MessageSquare size={14} />}
+                          <div
+                            key={notif.id}
+                            className="px-4 py-3 hover:bg-slate-50 transition-colors flex gap-3 items-start"
+                          >
+                            <div
+                              className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${notif.type === "NEW_APPOINTMENT" ? "bg-blue-50 text-blue-500" : "bg-[#199A8E]/10 text-[#199A8E]"}`}
+                            >
+                              {notif.type === "NEW_APPOINTMENT" ? (
+                                <Calendar size={14} />
+                              ) : (
+                                <MessageSquare size={14} />
+                              )}
                             </div>
                             <div>
-                              <p className="text-sm text-slate-700 leading-snug">{notif.message}</p>
+                              <p className="text-sm text-slate-700 leading-snug">
+                                {notif.message}
+                              </p>
                               <p className="text-[10px] text-slate-400 mt-1">
-                                {notif.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                {notif.time.toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
                               </p>
                             </div>
                           </div>
@@ -157,9 +192,12 @@ export const DoctorLayout = () => {
             </div>
 
             {/* Minimalist Profile Trigger */}
+            {/* <Link href="/profile"> */}
+
             <div className="h-10 w-10 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 cursor-pointer hover:border-[#199A8E] transition-all overflow-hidden">
               <User size={20} />
             </div>
+            {/* </Link> */}
           </div>
         </header>
 

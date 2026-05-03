@@ -90,8 +90,18 @@ export default ({ navigation, route }: any) => {
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* Status Badge */}
-        <View style={styles.statusContainer}>
-          <Text style={styles.statusText}>{appointment.status || "Upcoming"}</Text>
+        <View style={[
+          styles.statusContainer, 
+          appointment.status === "cancelled" && { backgroundColor: "#FEE2E2" },
+          appointment.status === "completed" && { backgroundColor: "#E8F5E9" }
+        ]}>
+          <Text style={[
+            styles.statusText,
+            appointment.status === "cancelled" && { color: "#EF4444" },
+            appointment.status === "completed" && { color: "#2E7D32" }
+          ]}>
+            {appointment.status || "Upcoming"}
+          </Text>
         </View>
 
         {/* Doctor Info */}
@@ -119,12 +129,12 @@ export default ({ navigation, route }: any) => {
         </View>
         <View style={styles.detailRow}>
           <Text style={styles.label}>Reason</Text>
-          <Text style={styles.value} numberOfLines={2}>{appointment.reason}</Text>
+          <Text style={styles.value} numberOfLines={2}>{appointment.reason || "General Consultation"}</Text>
         </View>
         <View style={styles.detailRow}>
           <Text style={styles.label}>Total Cost</Text>
           <Text style={[styles.value, { color: "#199A8E" }]}>
-            Rs. {appointment.totalAmount}
+            Rs. {appointment.totalAmount || appointment.amount || "0.00"}
           </Text>
         </View>
 
@@ -146,13 +156,24 @@ export default ({ navigation, route }: any) => {
                 </TouchableOpacity>
               )}
 
-              <TouchableOpacity style={styles.rescheduleButton} onPress={handleReschedule}>
-                <Text style={styles.rescheduleText}>Reschedule Appointment</Text>
-              </TouchableOpacity>
+              {/* Only show reschedule/cancel for active appointments */}
+              {appointment.status === "scheduled" && (
+                <>
+                  <TouchableOpacity style={styles.rescheduleButton} onPress={handleReschedule}>
+                    <Text style={styles.rescheduleText}>Reschedule Appointment</Text>
+                  </TouchableOpacity>
 
-              <TouchableOpacity style={styles.cancelButton} onPress={handleCancelAppointment}>
-                <Text style={styles.cancelText}>Cancel Appointment</Text>
-              </TouchableOpacity>
+                  <TouchableOpacity style={styles.cancelButton} onPress={handleCancelAppointment}>
+                    <Text style={styles.cancelText}>Cancel Appointment</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+              
+              {appointment.status === "cancelled" && (
+                <View style={{ padding: 16, backgroundColor: "#F9FAFB", borderRadius: 12, alignItems: "center" }}>
+                  <Text style={{ color: "#6B7280", fontStyle: "italic" }}>This appointment has been cancelled.</Text>
+                </View>
+              )}
             </>
           )}
         </View>

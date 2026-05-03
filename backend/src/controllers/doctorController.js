@@ -123,12 +123,30 @@ exports.getDashboardStats = async (req, res) => {
     const today = new Date().toISOString().split('T')[0];
 
     // 2. Run parallel queries for speed
-    const [todayCount, patientCount, recentApts] = await Promise.all([
+    const [todayCount, patientCount, upcomingCount, emergencyCount, recentApts] = await Promise.all([
       // Count today's appointments
-      Appointment.count({ where: { doctorId, appointmentDate: today } }),
+      Appointment.count({ where: { doctorId, appointmentDate: today, status: 'scheduled' } }),
       
       // Count unique patients seen by this doctor
       Appointment.count({ where: { doctorId }, distinct: true, col: 'patientId' }),
+
+      // Count future scheduled appointments
+      Appointment.count({ 
+        where: { 
+          doctorId, 
+          appointmentDate: { [Op.gt]: today },
+          status: 'scheduled'
+        } 
+      }),
+
+      // Count emergency appointments (using keyword in reason for now)
+      Appointment.count({
+        where: {
+          doctorId,
+          appointmentDate: today,
+          reason: { [Op.like]: '%emergency%' }
+        }
+      }),
       
       // Get the next 5 upcoming appointments for the table
       Appointment.findAll({
@@ -137,7 +155,10 @@ exports.getDashboardStats = async (req, res) => {
         include: [{ 
           model: User, 
           as: 'patient', 
-          attributes: ['fullName', 'phoneNumber'] 
+          attributes: [
+            'id', 'fullName', 'phoneNumber', 'email', 'gender', 'dateOfBirth',
+            'weight', 'height', 'bloodType', 'medicalHistory', 'allergies', 'emergencyContact'
+          ] 
         }],
         order: [['timeSlot', 'ASC']]
       })
@@ -147,8 +168,8 @@ exports.getDashboardStats = async (req, res) => {
       stats: {
         todayAppts: todayCount,
         totalPatients: patientCount,
-        upcoming: 28, // Replace with count of future dates if needed
-        emergencies: 2 // You can add a 'priority' column to Appointments later
+        upcoming: upcomingCount,
+        emergencies: emergencyCount
       },
       appointments: recentApts
     });
@@ -172,7 +193,10 @@ exports.getAllMyAppointments = async (req, res) => {
       include: [{
         model: User,
         as: 'patient',
-        attributes: ['id', 'fullName', 'phoneNumber', 'email']
+        attributes: [
+          'id', 'fullName', 'phoneNumber', 'email', 'gender', 'dateOfBirth',
+          'weight', 'height', 'bloodType', 'medicalHistory', 'allergies', 'emergencyContact'
+        ]
       }],
       order: [['appointmentDate', 'ASC'], ['timeSlot', 'ASC']]
     });

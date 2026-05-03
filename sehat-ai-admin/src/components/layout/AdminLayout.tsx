@@ -34,7 +34,6 @@ export const AdminLayout = () => {
     { icon: UserCog, label: "Doctors Management", path: "/admin/doctors" },
     { icon: Calendar, label: "Appointments", path: "/admin/appointments" },
     { icon: BarChart, label: "Reports & Analytics", path: "/admin/reports" },
-    { icon: Activity, label: "System Monitoring", path: "/admin/monitoring" },
     { icon: Settings, label: "Settings", path: "/admin/settings" },
   ];
 

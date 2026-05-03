@@ -50,7 +50,9 @@ export default function AppointmentsScreen({ navigation }: any) {
           }
           clearTimeout(safetyTimer);
           if (!active) return;
-          setAppointments(Array.isArray(list) ? list : []);
+          const data = Array.isArray(list) ? list : [];
+          // Filter out cancelled appointments as per user request
+          setAppointments(data.filter((a: any) => a.status !== "cancelled"));
         } catch (e) {
           clearTimeout(safetyTimer);
           if (!active) return;

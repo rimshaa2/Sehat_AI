@@ -27,11 +27,11 @@ router.post("/book", verifyToken, appointmentController.bookAppointment);
 
 // ── Wildcard /:id routes LAST ───────────────────────────────────────────────
 
-// PATCH /api/appointments/:id/status (admin only)
+// PATCH /api/appointments/:id/status (admin & doctor)
 router.patch(
   "/:id/status",
   verifyToken,
-  authorize(["admin"]),
+  authorize(["admin", "doctor"]),
   appointmentController.updateAppointmentStatus
 );
 

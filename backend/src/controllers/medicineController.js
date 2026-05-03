@@ -111,3 +111,25 @@ exports.deleteMedicine = async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 };
+
+exports.getPatientMedicines = async (req, res) => {
+  try {
+    const dbUser = await getDbUser(req);
+    if (!dbUser) return res.status(401).json({ error: "Unauthorized user" });
+    
+    // For now, we allow admins and doctors to fetch patient medicines.
+    if (dbUser.role !== "doctor" && dbUser.role !== "admin") {
+      return res.status(403).json({ error: "Only doctors and admins can view patient records." });
+    }
+
+    const { patientId } = req.params;
+    
+    const list = await MedicineLog.findAll({
+      where: { userId: patientId },
+      order: [["createdAt", "DESC"]],
+    });
+    return res.json(list.map(serializeMedicine));
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};

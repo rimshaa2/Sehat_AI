@@ -311,11 +311,12 @@ const startServer = async () => {
     await connectDB();
     console.log("✅ Database connected");
 
-    // alter: true adds new columns (fcmToken, attachmentUrl, etc.) to existing
-    // tables while creating new tables (ChatMessage) if they don't exist.
-    await sequelize.sync({ alter: true });
+    // Using force: false (safe default) — creates new tables, never alters existing ones.
+    // DO NOT use alter: true as it re-adds unique indices on every restart,
+    // which will hit MySQL's 64-key limit and crash the server.
+    await sequelize.sync({ force: false });
     await seedAdmin();
-    console.log("✅ Database Tables Synced (ChatMessage created, attachment columns added)");
+    console.log("✅ Database Tables Synced");
   } catch (dbError) {
     console.error("⚠️ Database Error:", dbError);
   }

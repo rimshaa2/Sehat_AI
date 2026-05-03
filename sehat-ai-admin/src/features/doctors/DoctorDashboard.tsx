@@ -134,9 +134,9 @@ export const DoctorDashboard = () => {
               >
                 <Calendar size={18} /> View Schedule
               </button>
-              <button className="px-8 py-3 bg-white/10 backdrop-blur-md text-white border border-white/20 rounded-2xl font-bold text-sm hover:bg-white/20 transition-all flex items-center gap-2">
+              {/* <button className="px-8 py-3 bg-white/10 backdrop-blur-md text-white border border-white/20 rounded-2xl font-bold text-sm hover:bg-white/20 transition-all flex items-center gap-2">
                 <Video size={18} /> Start Teleconsult
-              </button>
+              </button> */}
             </div>
           </div>
           <div className="hidden lg:block opacity-10 transform rotate-12 scale-110">
@@ -231,14 +231,16 @@ export const DoctorDashboard = () => {
                       </td>
                       <td className="px-8 py-5">
                         <span
-                          className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border ${apt.status === "confirmed" || apt.status === "scheduled"
+                          className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border ${
+                            apt.status === "confirmed" ||
+                            apt.status === "scheduled"
                               ? "text-emerald-600 bg-emerald-50 border-emerald-100"
                               : apt.status === "completed"
                                 ? "text-blue-600 bg-blue-50 border-blue-100"
                                 : apt.status === "cancelled"
                                   ? "text-red-600 bg-red-50 border-red-100"
                                   : "text-orange-600 bg-orange-50 border-orange-100"
-                            }`}
+                          }`}
                         >
                           {apt.status}
                         </span>
