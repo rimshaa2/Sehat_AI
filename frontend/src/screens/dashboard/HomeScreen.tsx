@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   SafeAreaView,
   View,
@@ -7,7 +7,7 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
-  ActivityIndicator
+  ActivityIndicator,
 } from "react-native";
 import { getAuth } from "@react-native-firebase/auth";
 import { useFocusEffect } from "@react-navigation/native";
@@ -17,6 +17,7 @@ import {
   Clock,
   MessageCircle,
   User as UserIcon,
+  Bell,
 } from "lucide-react-native";
 
 // 🟢 IMPORT API SERVICES (This replaces Firestore)
@@ -58,7 +59,7 @@ const SEARCH_TO_SPECIALTY: Record<string, string> = {
   thyroid: "Endocrinology",
 };
 
-export default ({ navigation }: any) => {
+export default ({ navigation, route }: any) => {
   const [userName, setUserName] = useState("User");
   const [nextAppointment, setNextAppointment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -82,38 +83,49 @@ export default ({ navigation }: any) => {
 
   // 1. Fetch User Data & Appointments (Runs on Focus)
   useFocusEffect(
-    () => {
-      let isActive = true; // Cleanup flag to prevent state updates if screen unmounts
+    useCallback(() => {
+      let isActive = true;
 
       const fetchData = async () => {
         const currentUser = auth.currentUser;
         if (!currentUser) return;
 
         try {
-          // A. Fetch User Profile from Backend (using Firebase UID)
+          setLoading(true);
           const userProfile = await getUserProfile(currentUser.uid);
 
           if (isActive && userProfile) {
             setUserName(userProfile.fullName?.split(" ")[0] || "User");
 
-            // B. Fetch Appointments (using the MySQL ID we just got)
-            // Note: userProfile.id is the MySQL ID (e.g., 1), not the Firebase UID
-            const appointments = await getMyAppointments(userProfile.id, 'patient');
+            const appointments = await getMyAppointments(
+              userProfile.id,
+              "patient",
+            );
 
             if (appointments && appointments.length > 0) {
-              // Get the most recent/upcoming appointment
-              const upcoming = appointments[0];
+              const upcomingAppointments = appointments.filter(
+                (a: any) =>
+                  a.status !== "cancelled" && a.status !== "completed",
+              );
 
-              // C. Map Backend Data to UI Structure
-              setNextAppointment({
-                id: upcoming.id,
-                doctorId: upcoming.doctorId,
-                doctorName: upcoming.doctor?.user?.fullName || "Unknown Doctor",
-                doctorSpecialty: upcoming.doctor?.specialization || "General",
-                doctorImage: upcoming.doctor?.user?.profilePicture,
-                date: upcoming.appointmentDate,
-                time: upcoming.timeSlot
-              });
+              if (upcomingAppointments.length > 0) {
+                const upcoming = upcomingAppointments[0];
+                setNextAppointment({
+                  id: upcoming.id,
+                  doctorId: upcoming.doctorId,
+                  doctorName:
+                    upcoming.doctor?.user?.fullName || "Unknown Doctor",
+                  doctorSpecialty: upcoming.doctor?.specialization || "General",
+                  doctorImage: upcoming.doctor?.user?.profilePicture,
+                  date: upcoming.appointmentDate,
+                  time: upcoming.timeSlot,
+                  reason: upcoming.reason,
+                  totalAmount: upcoming.amount,
+                  status: upcoming.status,
+                });
+              } else {
+                setNextAppointment(null);
+              }
             } else {
               setNextAppointment(null);
             }
@@ -127,8 +139,10 @@ export default ({ navigation }: any) => {
 
       fetchData();
 
-      return () => { isActive = false; };
-    }
+      return () => {
+        isActive = false;
+      };
+    }, [route?.params?.appointmentCancelled]), // Re-run if appointmentCancelled change
   );
 
   // Helper Component for Grid Items
@@ -157,12 +171,20 @@ export default ({ navigation }: any) => {
             <Text style={styles.greeting}>Hi {userName}!</Text>
             <Text style={styles.subGreeting}>I hope you are doing fine!!</Text>
           </View>
-          <TouchableOpacity
-            style={styles.profileButton}
-            onPress={() => navigation.navigate("Profile")}
-          >
-            <UserIcon color="#1C2A3A" size={24} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <TouchableOpacity
+              style={[styles.profileButton, { marginRight: 12 }]}
+              onPress={() => navigation.navigate("Notifications")}
+            >
+              <Bell color="#1C2A3A" size={24} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.profileButton}
+              onPress={() => navigation.navigate("Profile")}
+            >
+              <UserIcon color="#1C2A3A" size={24} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Search Bar */}
@@ -186,21 +208,37 @@ export default ({ navigation }: any) => {
 
         {/* 3. Dynamic Appointment Card */}
         {loading ? (
-          <ActivityIndicator size="small" color="#199A8E" style={{ marginVertical: 20 }} />
+          <ActivityIndicator
+            size="small"
+            color="#199A8E"
+            style={{ marginVertical: 20 }}
+          />
         ) : nextAppointment ? (
           <TouchableOpacity
             activeOpacity={0.9}
-            onPress={() => navigation.navigate("AppointmentDetails", { appointment: nextAppointment })}
+            onPress={() =>
+              navigation.navigate("AppointmentDetails", {
+                appointment: nextAppointment,
+              })
+            }
           >
             <View style={styles.appointmentCard}>
               <View style={styles.doctorInfo}>
                 <Image
-                  source={{ uri: nextAppointment.doctorImage || 'https://via.placeholder.com/150' }}
+                  source={{
+                    uri:
+                      nextAppointment.doctorImage ||
+                      "https://via.placeholder.com/150",
+                  }}
                   style={styles.doctorImage}
                 />
                 <View style={{ marginLeft: 12, flex: 1 }}>
-                  <Text style={styles.doctorName}>{nextAppointment.doctorName}</Text>
-                  <Text style={styles.doctorSpeciality}>{nextAppointment.doctorSpecialty}</Text>
+                  <Text style={styles.doctorName}>
+                    {nextAppointment.doctorName}
+                  </Text>
+                  <Text style={styles.doctorSpeciality}>
+                    {nextAppointment.doctorSpecialty}
+                  </Text>
                 </View>
                 <TouchableOpacity
                   style={styles.chatButton}
@@ -221,7 +259,9 @@ export default ({ navigation }: any) => {
                 <View style={styles.dateItem}>
                   <Calendar color="#FFFFFF" size={16} />
                   <Text style={styles.dateText}>
-                    {nextAppointment.date ? `Date: ${nextAppointment.date}` : "Upcoming"}
+                    {nextAppointment.date
+                      ? `Date: ${nextAppointment.date}`
+                      : "Upcoming"}
                   </Text>
                 </View>
                 <View style={styles.dateItem}>
@@ -231,59 +271,71 @@ export default ({ navigation }: any) => {
               </View>
             </View>
           </TouchableOpacity>
-        ) : (
-          // Optional: You can put a "No upcoming appointments" text here if you want
-          null
-        )}
+        ) : // Optional: You can put a "No upcoming appointments" text here if you want
+        null}
 
         {/* Grid Menu */}
         <View style={styles.gridContainer}>
           <GridItem
             title="Book an Appointment"
             subtitle="Find a Doctor or specialist"
-            icon={{ uri: 'https://cdn-icons-png.flaticon.com/512/2693/2693507.png' }}
+            icon={{
+              uri: "https://cdn-icons-png.flaticon.com/512/2693/2693507.png",
+            }}
             color="#E8F1FF"
             onPress={() => navigation.navigate("BookAppointment")}
           />
           <GridItem
             title="Medical Records"
             subtitle="view medical reports and history"
-            icon={{ uri: 'https://cdn-icons-png.flaticon.com/512/3004/3004458.png' }}
+            icon={{
+              uri: "https://cdn-icons-png.flaticon.com/512/3004/3004458.png",
+            }}
             color="#EBFDF2"
             onPress={() => navigation.navigate("MedicalRecords")}
           />
           <GridItem
             title="Check Symptoms"
             subtitle="Get trusted medical advice instantly with virtual assistant."
-            icon={{ uri: 'https://cdn-icons-png.flaticon.com/512/2966/2966327.png' }}
+            icon={{
+              uri: "https://cdn-icons-png.flaticon.com/512/2966/2966327.png",
+            }}
             color="#F2E7FE"
             onPress={() => navigation.navigate("AiAssistant")}
           />
           <GridItem
             title="Report an emergency"
             subtitle="Take help in emergency situation"
-            icon={{ uri: 'https://cdn-icons-png.flaticon.com/512/564/564619.png' }}
+            icon={{
+              uri: "https://cdn-icons-png.flaticon.com/512/564/564619.png",
+            }}
             color="#FFEEEE"
             onPress={() => navigation.navigate("Emergency")}
           />
           <GridItem
             title="Log Medicines"
             subtitle="get reminded to take medicines"
-            icon={{ uri: 'https://cdn-icons-png.flaticon.com/512/883/883360.png' }}
+            icon={{
+              uri: "https://cdn-icons-png.flaticon.com/512/883/883360.png",
+            }}
             color="#FFF5EB"
             onPress={() => navigation.navigate("MedicineDashboard")}
           />
           <GridItem
             title="Mental Wellness"
             subtitle="seek Mental health support"
-            icon={{ uri: 'https://cdn-icons-png.flaticon.com/512/2913/2913520.png' }}
+            icon={{
+              uri: "https://cdn-icons-png.flaticon.com/512/2913/2913520.png",
+            }}
             color="#FEFCE4"
             onPress={() => navigation.navigate("MentalHealth")}
           />
           <GridItem
             title="Community"
             subtitle="Discuss health topics with others"
-            icon={{ uri: "https://cdn-icons-png.flaticon.com/512/942/942748.png" }}
+            icon={{
+              uri: "https://cdn-icons-png.flaticon.com/512/942/942748.png",
+            }}
             color="#EEF2FF"
             onPress={() => navigation.navigate("Community")}
           />
@@ -292,16 +344,19 @@ export default ({ navigation }: any) => {
         {/* Promo Banner */}
         <View style={styles.promoBanner}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.promoTitle}>How AI is Revolutionizing Medical Consultations</Text>
-            <TouchableOpacity onPress={() => navigation.navigate("HealthArticles")}>
-              <Text style={styles.promoLink}>Find out now  →</Text>
+            <Text style={styles.promoTitle}>
+              How AI is Revolutionizing Medical Consultations
+            </Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate("HealthArticles")}
+            >
+              <Text style={styles.promoLink}>Find out now →</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.promoImagePlaceholder}>
-            <Text style={{ color: 'white', fontWeight: 'bold' }}>AI</Text>
+            <Text style={{ color: "white", fontWeight: "bold" }}>AI</Text>
           </View>
         </View>
-
       </ScrollView>
 
       <BottomNavBar navigation={navigation} />

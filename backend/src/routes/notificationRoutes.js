@@ -10,6 +10,11 @@ const {
   sendMedicineReminder,
   sendAppointmentReminder,
 } = require('../services/notificationService');
+const {
+  getUserNotifications,
+  markAsRead,
+  markAllAsRead,
+} = require('../controllers/notificationController');
 
 // ── POST /api/notifications/register-token ────────────────────────────────────
 // Called by the frontend after obtaining the FCM token from
@@ -77,5 +82,17 @@ router.post('/test', verifyToken, async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 });
+
+// ── GET /api/notifications ───────────────────────────────────────────────────
+// Fetch all notifications for the user
+router.get('/', verifyToken, getUserNotifications);
+
+// ── PATCH /api/notifications/:id/read ─────────────────────────────────────────
+// Mark a specific notification as read
+router.patch('/:id/read', verifyToken, markAsRead);
+
+// ── PATCH /api/notifications/read-all ────────────────────────────────────────
+// Mark all notifications as read
+router.patch('/read-all', verifyToken, markAllAsRead);
 
 module.exports = router;

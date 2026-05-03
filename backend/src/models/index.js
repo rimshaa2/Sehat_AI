@@ -9,6 +9,7 @@ const MedicalRecord = require('./MedicalRecord');
 const CommunityPost = require("./CommunityPost");
 const MedicineLog = require("./MedicineLog");
 const WellnessEntry = require("./WellnessEntry");
+const Notification = require("./Notification");
 
 // 2. Define Relationships
 
@@ -37,8 +38,11 @@ User.hasMany(CommunityPost, { foreignKey: "userId", as: "communityPosts" });
 CommunityPost.belongsTo(User, { foreignKey: "userId", as: "user" });
 User.hasMany(MedicineLog, { foreignKey: "userId", as: "medicines" });
 MedicineLog.belongsTo(User, { foreignKey: "userId", as: "user" });
-User.hasMany(WellnessEntry, { foreignKey: "userId", as: "wellnessEntries" });
 WellnessEntry.belongsTo(User, { foreignKey: "userId", as: "user" });
+
+// --- Notification Relationships ---
+User.hasMany(Notification, { foreignKey: "userId", as: "notifications" });
+Notification.belongsTo(User, { foreignKey: "userId", as: "user" });
 
 // 3. Export
 const db = {
@@ -51,6 +55,7 @@ const db = {
   CommunityPost,
   MedicineLog,
   WellnessEntry,
+  Notification,
 };
 
 module.exports = db;

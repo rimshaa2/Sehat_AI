@@ -118,7 +118,19 @@ export default function AppointmentsScreen({ navigation }: any) {
               <TouchableOpacity
                 key={apt.id}
                 onPress={() =>
-                  navigation.navigate("AppointmentDetails", { appointment: apt })
+                  navigation.navigate("AppointmentDetails", { 
+                    appointment: {
+                      ...apt,
+                      doctorName: apt?.doctor?.user?.fullName || "Doctor",
+                      doctorSpecialty: apt?.doctor?.specialization || "General",
+                      doctorImage: apt?.doctor?.user?.profilePicture,
+                      date: apt.appointmentDate,
+                      time: apt.timeSlot,
+                      reason: apt.reason,
+                      totalAmount: apt.amount,
+                      status: apt.status
+                    } 
+                  })
                 }
                 style={{
                   backgroundColor: "#FFFFFF",

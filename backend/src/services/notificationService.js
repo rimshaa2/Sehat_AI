@@ -8,6 +8,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 const admin = require('../config/firebase');
+const { Notification } = require('../models');
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -21,6 +22,20 @@ const admin = require('../config/firebase');
  * @param {object}  userModel    - Sequelize User instance (used to purge bad tokens)
  */
 const sendToToken = async (fcmToken, notification, data = {}, userModel = null) => {
+  if (userModel && userModel.id) {
+    try {
+      await Notification.create({
+        userId: userModel.id,
+        title: notification.title,
+        body: notification.body,
+        type: data.type || 'SYSTEM',
+        isRead: false,
+      });
+    } catch (dbErr) {
+      console.error('Failed to save notification to DB:', dbErr.message);
+    }
+  }
+
   if (!admin || !fcmToken) return false;
 
   const message = {
