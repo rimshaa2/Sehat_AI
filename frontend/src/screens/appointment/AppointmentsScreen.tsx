@@ -52,7 +52,10 @@ export default function AppointmentsScreen({ navigation }: any) {
           if (!active) return;
           const data = Array.isArray(list) ? list : [];
           // Filter out cancelled appointments as per user request
-          setAppointments(data.filter((a: any) => a.status !== "cancelled"));
+          setAppointments(data.filter((a: any) => 
+  a.status !== "cancelled" && 
+  a.paymentReviewStatus !== "pending_review"
+));
         } catch (e) {
           clearTimeout(safetyTimer);
           if (!active) return;

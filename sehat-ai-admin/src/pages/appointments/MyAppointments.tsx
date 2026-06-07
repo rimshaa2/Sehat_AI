@@ -71,20 +71,57 @@ export const MyAppointments = () => {
     }
   };
 
-  const handleUpdateStatus = async (id: string, status: string) => {
-    try {
-      if (status === "cancelled") {
-        await api.patch(`/appointments/${id}/cancel`);
-      } else {
-        await api.patch(`/appointments/${id}/status`, { status });
-      }
-      toast.success(`Appointment marked as ${status}`);
-      fetchAppointments();
-    } catch (error) {
-      toast.error(`Failed to update appointment status`);
-      console.error(error);
+
+const handleUpdateStatus = async (id: string, status: string) => {
+  // ── Confirm before completing ──────────────────────────────────────────────
+  if (status === "completed") {
+    const confirmed = window.confirm(
+      "Mark this appointment as completed?\n\nThis will allow you to add medical notes for the patient."
+    );
+    if (!confirmed) return;
+  }
+
+  // ── Confirm before cancelling ──────────────────────────────────────────────
+  if (status === "cancelled") {
+    const confirmed = window.confirm(
+      "Cancel this appointment?\n\nThe patient will be notified immediately. This action cannot be undone."
+    );
+    if (!confirmed) return;
+  }
+
+  // ── Confirm no-show ────────────────────────────────────────────────────────
+  if (status === "no-show") {
+    const confirmed = window.confirm(
+      "Mark patient as no-show?\n\nThis will record that the patient did not attend their appointment."
+    );
+    if (!confirmed) return;
+  }
+
+  try {
+    if (status === "cancelled") {
+      // Use the dedicated cancel endpoint so FCM + socket notifications fire
+      await api.patch(`/appointments/${id}/cancel`);
+    } else {
+      // Complete / no-show go through the status endpoint
+      await api.patch(`/appointments/${id}/status`, { status });
     }
-  };
+    toast.success(
+      status === "completed"
+        ? "Appointment marked as completed ✓"
+        : status === "cancelled"
+        ? "Appointment cancelled. Patient has been notified."
+        : `Appointment marked as ${status}`
+    );
+    fetchAppointments();
+  } catch (error: any) {
+    const msg =
+      error?.response?.data?.error ||
+      error?.message ||
+      `Failed to update appointment status`;
+    toast.error(msg);
+    console.error(error);
+  }
+};
 
   const handleSaveNote = async () => {
     if (!noteTitle || !noteDetails) {

@@ -28,7 +28,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 // ── Config ─────────────────────────────────────────────────────────────────────
 const BACKEND_URL =
   process.env.EXPO_PUBLIC_API_URL?.replace("/api", "") ||
-  "http://192.168.18.38:5000";
+  "http://192.168.43.15:5000";
 
 // Replace with your actual Google Maps API key
 // OpenStreetMap via Leaflet.js — no API key required

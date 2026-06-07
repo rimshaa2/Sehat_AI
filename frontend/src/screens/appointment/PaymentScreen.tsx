@@ -9,8 +9,6 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
-  Linking,
-  TextInput,
   StyleSheet,
 } from "react-native";
 import {
@@ -21,18 +19,17 @@ import {
   PenTool,
   CreditCard,
   Banknote,
-  Smartphone,
   CheckCircle,
   Shield,
+  Clock,
 } from "lucide-react-native";
 import auth from "@react-native-firebase/auth";
 import * as ImagePicker from "expo-image-picker";
 import { bookAppointment as apiBookAppointment, getUserProfile } from "../../services/api";
 
-// ── Payment methods ───────────────────────────────────────────────────────────
 const PAYMENT_METHODS = [
-  { id: "cash",      label: "Cash on Visit",        desc: "Pay at the clinic",              icon: "cash"   },
-  { id: "bank",      label: "Bank Transfer",        desc: "Upload payment receipt",         icon: "card"   },
+  { id: "cash",  label: "Cash on Visit",  desc: "Pay at the clinic",    icon: "cash" },
+  { id: "bank",  label: "Bank Transfer",  desc: "Upload payment receipt", icon: "card" },
 ];
 
 export default ({ navigation, route = { params: {} } }: any) => {
@@ -46,17 +43,11 @@ export default ({ navigation, route = { params: {} } }: any) => {
   const adminFee        = 100;
   const total           = consultationFee + adminFee;
 
-  const generateOrderId = () =>
-    `ORDER-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-  // ── Icon component ────────────────────────────────────────────────────────
   const PaymentIcon = ({ type }: { type: string }) => {
-    if (type === "cash")   return <Banknote    size={22} color="#199A8E" />;
-    if (type === "card")   return <CreditCard  size={22} color="#199A8E" />;
-    return                        <Smartphone  size={22} color="#199A8E" />;
+    if (type === "cash") return <Banknote   size={22} color="#199A8E" />;
+    return                      <CreditCard size={22} color="#199A8E" />;
   };
 
-  // ── Core booking — uses exported service fn (correct /api/ prefix) ────────
   const submitBooking = async (paymentStatus: "pending" | "completed") => {
     const currentUser = auth().currentUser;
     if (!currentUser) throw new Error("You must be logged in to book.");
@@ -69,25 +60,31 @@ export default ({ navigation, route = { params: {} } }: any) => {
       doctorId:        doctor.id,
       appointmentDate: date,
       timeSlot:        time,
-      reason:          reason,
+      reason,
       amount:          total,
       paymentMethod:   selectedMethod,
-      paymentStatus:   paymentStatus,
+      // Bank transfer stays "pending" until admin reviews the screenshot
+      paymentStatus:   selectedMethod === "bank" ? "pending" : paymentStatus,
+      // For bank: set appointment status to "pending_review" until admin confirms
+      appointmentStatus: selectedMethod === "bank" ? "pending_review" : "scheduled",
       receiptImage:    receiptBase64 || undefined,
     };
 
-    console.log("🚀 Booking Payload:", payload);
     const result = await apiBookAppointment(payload);
     if (!result.success) throw new Error(result.error || "Booking failed.");
     return result;
   };
 
-  // ── CASH — confirm immediately, no payment ────────────────────────────────
+  // ── CASH ──────────────────────────────────────────────────────────────────
   const handleCash = async () => {
     setIsLoading(true);
     try {
       await submitBooking("pending");
-      navigation.replace("BookingSuccess", { doctor, date, time, paymentMethod: "cash" });
+      navigation.replace("BookingSuccess", {
+        doctor, date, time,
+        paymentMethod: "cash",
+        pendingReview: false,
+      });
     } catch (err: any) {
       Alert.alert("Booking Failed", err.response?.data?.error || err.message || "Something went wrong.");
     } finally {
@@ -95,16 +92,21 @@ export default ({ navigation, route = { params: {} } }: any) => {
     }
   };
 
-  // ── BANK — upload receipt and book ──────────────────────────────────────────
+  // ── BANK — screenshot must be reviewed by admin before confirmation ───────
   const handleBank = async () => {
     if (!receiptBase64) {
-      Alert.alert("Receipt Required", "Please upload the payment receipt to proceed.");
+      Alert.alert("Receipt Required", "Please upload your payment screenshot before proceeding.");
       return;
     }
     setIsLoading(true);
     try {
       await submitBooking("pending");
-      navigation.replace("BookingSuccess", { doctor, date, time, paymentMethod: "bank" });
+      // Navigate to a "pending review" success screen, not the normal confirmed screen
+      navigation.replace("BookingSuccess", {
+        doctor, date, time,
+        paymentMethod: "bank",
+        pendingReview: true,   // ← tells BookingSuccessScreen to show "Under Review" message
+      });
     } catch (err: any) {
       Alert.alert("Booking Failed", err.response?.data?.error || err.message || "Something went wrong.");
     } finally {
@@ -114,22 +116,21 @@ export default ({ navigation, route = { params: {} } }: any) => {
 
   const handlePickReceipt = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (permissionResult.granted === false) {
-      Alert.alert("Permission Required", "Permission to access camera roll is required!");
+    if (!permissionResult.granted) {
+      Alert.alert("Permission Required", "Please allow access to your photo library.");
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 0.5,
+      quality: 0.6,
       base64: true,
     });
-    if (!result.canceled && result.assets && result.assets.length > 0) {
+    if (!result.canceled && result.assets?.length > 0) {
       setReceiptBase64(`data:image/jpeg;base64,${result.assets[0].base64}`);
     }
   };
 
-  // ── Main confirm handler ──────────────────────────────────────────────────
   const handleConfirm = () => {
     if (selectedMethod === "cash") return handleCash();
     if (selectedMethod === "bank") return handleBank();
@@ -137,20 +138,21 @@ export default ({ navigation, route = { params: {} } }: any) => {
 
   const confirmLabel = () => {
     if (selectedMethod === "cash") return "Confirm Booking";
-    if (selectedMethod === "bank") return "Confirm & Upload";
+    if (selectedMethod === "bank") return "Submit for Review";
     return "Confirm";
   };
 
   return (
     <SafeAreaView style={styles.container}>
 
-      {/* Loading overlay */}
       {isLoading && (
         <Modal visible transparent animationType="fade">
           <View style={styles.loadingOverlay}>
             <View style={styles.loadingBox}>
               <ActivityIndicator size="large" color="#199A8E" />
-              <Text style={styles.loadingText}>Confirming your appointment...</Text>
+              <Text style={styles.loadingText}>
+                {selectedMethod === "bank" ? "Submitting for review..." : "Confirming your appointment..."}
+              </Text>
             </View>
           </View>
         </Modal>
@@ -249,23 +251,47 @@ export default ({ navigation, route = { params: {} } }: any) => {
           ))}
         </View>
 
-        {/* Bank details and receipt upload */}
+        {/* Bank Details + Screenshot Upload */}
         {selectedMethod === "bank" && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Bank Details</Text>
             <View style={styles.walletCard}>
-              <Text style={{ fontSize: 13, color: "#4B5563", marginBottom: 4 }}>Bank Name: <Text style={{ fontWeight: "700" }}>Meezan Bank</Text></Text>
-              <Text style={{ fontSize: 13, color: "#4B5563", marginBottom: 4 }}>Account Title: <Text style={{ fontWeight: "700" }}>Sehat AI</Text></Text>
-              <Text style={{ fontSize: 13, color: "#4B5563", marginBottom: 16 }}>Account No: <Text style={{ fontWeight: "700" }}>0123456789</Text></Text>
+              <Text style={styles.bankDetail}>Bank Name: <Text style={styles.bankValue}>Meezan Bank</Text></Text>
+              <Text style={styles.bankDetail}>Account Title: <Text style={styles.bankValue}>Sehat AI</Text></Text>
+              <Text style={styles.bankDetail}>Account No: <Text style={styles.bankValue}>0123456789</Text></Text>
 
-              <Text style={styles.inputLabel}>Upload Receipt</Text>
-              <TouchableOpacity onPress={handlePickReceipt} style={{ borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 10, borderStyle: "dashed", overflow: "hidden", backgroundColor: "#FAFAFA" }}>
+              {/* Review notice */}
+              <View style={styles.reviewNotice}>
+                <Clock size={14} color="#92400E" style={{ marginRight: 6 }} />
+                <Text style={styles.reviewNoticeText}>
+                  Your appointment will be confirmed after admin reviews your payment screenshot (usually within 1–2 hours).
+                </Text>
+              </View>
+
+              <Text style={styles.inputLabel}>Upload Payment Screenshot *</Text>
+              <TouchableOpacity
+                onPress={handlePickReceipt}
+                style={[
+                  styles.uploadBox,
+                  receiptBase64 ? styles.uploadBoxFilled : null,
+                ]}
+              >
                 {receiptBase64 ? (
-                  <Image source={{ uri: receiptBase64 }} style={{ width: '100%', height: 160 }} resizeMode="cover" />
+                  <>
+                    <Image
+                      source={{ uri: receiptBase64 }}
+                      style={{ width: "100%", height: 180 }}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.changeReceiptBadge}>
+                      <Text style={styles.changeReceiptText}>Tap to change</Text>
+                    </View>
+                  </>
                 ) : (
-                  <View style={{ padding: 24, alignItems: 'center' }}>
-                    <Text style={{ color: "#199A8E", fontWeight: "600" }}>+ Select Image</Text>
-                    <Text style={{ color: "#9CA3AF", fontSize: 12, marginTop: 4 }}>JPG, PNG up to 5MB</Text>
+                  <View style={styles.uploadPlaceholder}>
+                    <Text style={styles.uploadIcon}>📎</Text>
+                    <Text style={styles.uploadCta}>Tap to select screenshot</Text>
+                    <Text style={styles.uploadHint}>JPG or PNG, max 5MB</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -273,18 +299,18 @@ export default ({ navigation, route = { params: {} } }: any) => {
           </View>
         )}
 
-        {/* Info banners */}
+        {/* Info Banners */}
         {selectedMethod === "cash" && (
           <View style={styles.infoBanner}>
             <Text style={styles.infoBannerText}>
-              💵 Your slot is reserved right away. Pay Rs. {total} at the clinic on the day. Please arrive 10 minutes early.
+              💵 Your slot is reserved right away. Pay Rs. {total} at the clinic. Please arrive 10 minutes early.
             </Text>
           </View>
         )}
         {selectedMethod === "bank" && (
-          <View style={styles.infoBanner}>
-            <Text style={styles.infoBannerText}>
-              🏦 Transfer the exact amount to the bank account above and upload the receipt to secure your slot.
+          <View style={[styles.infoBanner, { borderColor: "#FDE68A", backgroundColor: "#FFFBEB" }]}>
+            <Text style={[styles.infoBannerText, { color: "#78350F" }]}>
+              🏦 Transfer Rs. {total} to the account above, then upload the screenshot. Admin will review and confirm your appointment.
             </Text>
           </View>
         )}
@@ -299,7 +325,11 @@ export default ({ navigation, route = { params: {} } }: any) => {
           <Text style={styles.footerTotalPrice}>Rs. {total}</Text>
         </View>
         <TouchableOpacity
-          style={[styles.confirmButton, isLoading && { opacity: 0.7 }]}
+          style={[
+            styles.confirmButton,
+            isLoading && { opacity: 0.7 },
+            selectedMethod === "bank" && { backgroundColor: "#D97706" },
+          ]}
           onPress={handleConfirm}
           disabled={isLoading}
         >
@@ -314,52 +344,61 @@ export default ({ navigation, route = { params: {} } }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container:       { flex: 1, backgroundColor: "#F8FAFC" },
-  header:          { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 16, backgroundColor: "white", borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
-  backButton:      { padding: 4 },
-  headerTitle:     { fontSize: 18, fontWeight: "700", color: "#1C2A3A" },
-  content:         { padding: 16 },
-  loadingOverlay:  { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center" },
-  loadingBox:      { backgroundColor: "white", borderRadius: 16, padding: 32, alignItems: "center", gap: 16 },
-  loadingText:     { fontSize: 14, color: "#6B7280" },
-  doctorCard:      { flexDirection: "row", backgroundColor: "white", borderRadius: 16, padding: 16, marginBottom: 12, elevation: 2, gap: 12 },
-  doctorImage:     { width: 70, height: 70, borderRadius: 14 },
-  doctorInfo:      { flex: 1, justifyContent: "center" },
-  doctorName:      { fontSize: 15, fontWeight: "700", color: "#1C2A3A" },
-  specialty:       { fontSize: 13, color: "#6B7280", marginTop: 2 },
-  ratingContainer: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
-  ratingText:      { fontSize: 12, color: "#199A8E", fontWeight: "600" },
-  locationRow:     { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
-  locationText:    { fontSize: 12, color: "#6B7280" },
-  detailsCard:     { backgroundColor: "white", borderRadius: 16, padding: 16, marginBottom: 12, elevation: 2 },
-  detailRow:       { flexDirection: "row", alignItems: "center", gap: 12 },
-  iconCircle:      { width: 38, height: 38, borderRadius: 10, backgroundColor: "#F0FDF9", alignItems: "center", justifyContent: "center" },
-  detailLabel:     { fontSize: 11, color: "#9CA3AF", marginBottom: 2 },
-  detailValue:     { fontSize: 13, fontWeight: "600", color: "#1C2A3A" },
-  changeBtn:       { marginLeft: "auto" },
-  changeLink:      { fontSize: 13, color: "#199A8E", fontWeight: "600" },
-  section:         { marginBottom: 12 },
-  sectionTitle:    { fontSize: 15, fontWeight: "700", color: "#1C2A3A", marginBottom: 10 },
-  breakdownCard:   { backgroundColor: "white", borderRadius: 16, padding: 16, elevation: 2 },
-  paymentRow:      { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
-  paymentLabel:    { fontSize: 14, color: "#6B7280" },
-  paymentValue:    { fontSize: 14, color: "#1C2A3A", fontWeight: "500" },
-  totalValue:      { fontSize: 16, color: "#199A8E", fontWeight: "800" },
-  divider:         { height: 1, backgroundColor: "#F3F4F6", marginVertical: 8 },
-  methodCard:      { flexDirection: "row", alignItems: "center", backgroundColor: "white", borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1.5, borderColor: "#F3F4F6", elevation: 1 },
-  methodCardActive:{ borderColor: "#199A8E", backgroundColor: "#F0FDF9" },
-  methodLabel:     { fontSize: 14, fontWeight: "600", color: "#1C2A3A" },
-  methodDesc:      { fontSize: 12, color: "#9CA3AF", marginTop: 2 },
-  walletCard:      { backgroundColor: "white", borderRadius: 16, padding: 16, elevation: 2 },
-  inputLabel:      { fontSize: 12, fontWeight: "600", color: "#6B7280", marginBottom: 6 },
-  input:           { borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: "#1C2A3A", backgroundColor: "#FAFAFA" },
-  walletNote:      { marginTop: 10, backgroundColor: "#FFF8E1", borderRadius: 8, padding: 10 },
-  walletNoteText:  { fontSize: 12, color: "#856404", lineHeight: 18 },
-  infoBanner:      { backgroundColor: "#F0FDF9", borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: "#D1FAE5" },
-  infoBannerText:  { fontSize: 13, color: "#065F46", lineHeight: 20 },
-  footer:          { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 16, backgroundColor: "white", borderTopWidth: 1, borderTopColor: "#F3F4F6", elevation: 8 },
-  footerTotalLabel:{ fontSize: 12, color: "#9CA3AF" },
-  footerTotalPrice:{ fontSize: 18, fontWeight: "800", color: "#1C2A3A" },
-  confirmButton:   { backgroundColor: "#199A8E", borderRadius: 14, paddingHorizontal: 28, paddingVertical: 14, elevation: 4 },
-  confirmButtonText:{ fontSize: 15, fontWeight: "700", color: "white" },
+  container:          { flex: 1, backgroundColor: "#F8FAFC" },
+  header:             { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 16, backgroundColor: "white", borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
+  backButton:         { padding: 4 },
+  headerTitle:        { fontSize: 18, fontWeight: "700", color: "#1C2A3A" },
+  content:            { padding: 16 },
+  loadingOverlay:     { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center" },
+  loadingBox:         { backgroundColor: "white", borderRadius: 16, padding: 32, alignItems: "center", gap: 16 },
+  loadingText:        { fontSize: 14, color: "#6B7280", textAlign: "center", marginTop: 8 },
+  doctorCard:         { flexDirection: "row", backgroundColor: "white", borderRadius: 16, padding: 16, marginBottom: 12, elevation: 2, gap: 12 },
+  doctorImage:        { width: 70, height: 70, borderRadius: 14 },
+  doctorInfo:         { flex: 1, justifyContent: "center" },
+  doctorName:         { fontSize: 15, fontWeight: "700", color: "#1C2A3A" },
+  specialty:          { fontSize: 13, color: "#6B7280", marginTop: 2 },
+  ratingContainer:    { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
+  ratingText:         { fontSize: 12, color: "#199A8E", fontWeight: "600" },
+  locationRow:        { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
+  locationText:       { fontSize: 12, color: "#6B7280" },
+  detailsCard:        { backgroundColor: "white", borderRadius: 16, padding: 16, marginBottom: 12, elevation: 2 },
+  detailRow:          { flexDirection: "row", alignItems: "center", gap: 12 },
+  iconCircle:         { width: 38, height: 38, borderRadius: 10, backgroundColor: "#F0FDF9", alignItems: "center", justifyContent: "center" },
+  detailLabel:        { fontSize: 11, color: "#9CA3AF", marginBottom: 2 },
+  detailValue:        { fontSize: 13, fontWeight: "600", color: "#1C2A3A" },
+  changeBtn:          { marginLeft: "auto" },
+  changeLink:         { fontSize: 13, color: "#199A8E", fontWeight: "600" },
+  section:            { marginBottom: 12 },
+  sectionTitle:       { fontSize: 15, fontWeight: "700", color: "#1C2A3A", marginBottom: 10 },
+  breakdownCard:      { backgroundColor: "white", borderRadius: 16, padding: 16, elevation: 2 },
+  paymentRow:         { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
+  paymentLabel:       { fontSize: 14, color: "#6B7280" },
+  paymentValue:       { fontSize: 14, color: "#1C2A3A", fontWeight: "500" },
+  totalValue:         { fontSize: 16, color: "#199A8E", fontWeight: "800" },
+  divider:            { height: 1, backgroundColor: "#F3F4F6", marginVertical: 8 },
+  methodCard:         { flexDirection: "row", alignItems: "center", backgroundColor: "white", borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1.5, borderColor: "#F3F4F6", elevation: 1 },
+  methodCardActive:   { borderColor: "#199A8E", backgroundColor: "#F0FDF9" },
+  methodLabel:        { fontSize: 14, fontWeight: "600", color: "#1C2A3A" },
+  methodDesc:         { fontSize: 12, color: "#9CA3AF", marginTop: 2 },
+  walletCard:         { backgroundColor: "white", borderRadius: 16, padding: 16, elevation: 2 },
+  bankDetail:         { fontSize: 13, color: "#4B5563", marginBottom: 4 },
+  bankValue:          { fontWeight: "700" },
+  reviewNotice:       { flexDirection: "row", alignItems: "flex-start", backgroundColor: "#FEF3C7", borderRadius: 10, padding: 12, marginVertical: 12, borderWidth: 1, borderColor: "#FDE68A" },
+  reviewNoticeText:   { fontSize: 12, color: "#92400E", flex: 1, lineHeight: 18 },
+  inputLabel:         { fontSize: 12, fontWeight: "600", color: "#6B7280", marginBottom: 6 },
+  uploadBox:          { borderWidth: 1.5, borderColor: "#E5E7EB", borderRadius: 12, borderStyle: "dashed", overflow: "hidden", backgroundColor: "#FAFAFA" },
+  uploadBoxFilled:    { borderStyle: "solid", borderColor: "#199A8E" },
+  uploadPlaceholder:  { padding: 28, alignItems: "center" },
+  uploadIcon:         { fontSize: 28, marginBottom: 8 },
+  uploadCta:          { color: "#199A8E", fontWeight: "600", fontSize: 14 },
+  uploadHint:         { color: "#9CA3AF", fontSize: 12, marginTop: 4 },
+  changeReceiptBadge: { position: "absolute", bottom: 8, right: 8, backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  changeReceiptText:  { color: "white", fontSize: 11, fontWeight: "600" },
+  infoBanner:         { backgroundColor: "#F0FDF9", borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: "#D1FAE5" },
+  infoBannerText:     { fontSize: 13, color: "#065F46", lineHeight: 20 },
+  footer:             { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 16, backgroundColor: "white", borderTopWidth: 1, borderTopColor: "#F3F4F6", elevation: 8 },
+  footerTotalLabel:   { fontSize: 12, color: "#9CA3AF" },
+  footerTotalPrice:   { fontSize: 18, fontWeight: "800", color: "#1C2A3A" },
+  confirmButton:      { backgroundColor: "#199A8E", borderRadius: 14, paddingHorizontal: 28, paddingVertical: 14, elevation: 4 },
+  confirmButtonText:  { fontSize: 15, fontWeight: "700", color: "white" },
 });

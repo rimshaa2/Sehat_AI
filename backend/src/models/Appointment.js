@@ -32,7 +32,33 @@ const Appointment = sequelize.define(
       defaultValue: "cash",
     },
     receiptImage: {
-      type: DataTypes.TEXT('long'),
+      type: DataTypes.TEXT("long"),
+      allowNull: true,
+    },
+    // ── NEW: tracks admin review of the uploaded payment screenshot ──────────
+    // pending_review  → receipt uploaded, waiting for admin
+    // approved        → admin confirmed the payment
+    // rejected        → admin rejected (patient needs to re-upload)
+    // not_required    → cash payment, no screenshot needed
+    paymentReviewStatus: {
+      type: DataTypes.ENUM(
+        "not_required",
+        "pending_review",
+        "approved",
+        "rejected"
+      ),
+      defaultValue: "not_required",
+    },
+    // Optional note admin can leave when rejecting a receipt
+    paymentReviewNote: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    // ── NEW: deadline until which a patient can cancel (set at booking time) ─
+    // Patients can cancel up to CANCELLATION_HOURS_BEFORE_APPOINTMENT hours
+    // before the appointment start time (default: 2 hours).
+    cancellationDeadline: {
+      type: DataTypes.DATE,
       allowNull: true,
     },
     amount: {
