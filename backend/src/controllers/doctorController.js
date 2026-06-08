@@ -321,3 +321,72 @@ exports.getAvailability = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// ── Qualifications Document Management ──────────────────────────────────────────
+exports.getQualifications = async (req, res) => {
+  try {
+    const user = await User.findOne({ where: { firebase_uid: req.user.uid } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const doctor = await Doctor.findOne({ where: { userId: user.id } });
+    if (!doctor) return res.status(404).json({ error: "Doctor not found" });
+
+    const qualifications = doctor.qualifications ? JSON.parse(doctor.qualifications) : [];
+    res.json(qualifications);
+  } catch (error) {
+    console.error("Get qualifications error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.addQualification = async (req, res) => {
+  try {
+    const { documentType, documentName, fileData } = req.body;
+    if (!documentType || !documentName || !fileData) {
+      return res.status(400).json({ error: "documentType, documentName, and fileData are required" });
+    }
+
+    const user = await User.findOne({ where: { firebase_uid: req.user.uid } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const doctor = await Doctor.findOne({ where: { userId: user.id } });
+    if (!doctor) return res.status(404).json({ error: "Doctor not found" });
+
+    const qualifications = doctor.qualifications ? JSON.parse(doctor.qualifications) : [];
+    
+    const newQual = {
+      id: Date.now().toString() + "_" + Math.random().toString(36).substr(2, 9),
+      documentType,
+      documentName,
+      fileData,
+      uploadedAt: new Date().toISOString()
+    };
+    qualifications.push(newQual);
+
+    await doctor.update({ qualifications: JSON.stringify(qualifications) });
+    res.status(201).json(newQual);
+  } catch (error) {
+    console.error("Add qualification error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.deleteQualification = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findOne({ where: { firebase_uid: req.user.uid } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const doctor = await Doctor.findOne({ where: { userId: user.id } });
+    if (!doctor) return res.status(404).json({ error: "Doctor not found" });
+
+    let qualifications = doctor.qualifications ? JSON.parse(doctor.qualifications) : [];
+    qualifications = qualifications.filter((q) => q.id !== id);
+
+    await doctor.update({ qualifications: JSON.stringify(qualifications) });
+    res.json({ success: true, message: "Qualification deleted successfully" });
+  } catch (error) {
+    console.error("Delete qualification error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};

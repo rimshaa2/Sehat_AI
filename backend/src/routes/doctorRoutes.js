@@ -27,8 +27,9 @@ router.put('/profile', verifyToken, doctorController.updateDoctorProfile);
 // ── My Appointments (Calendar) ──
 router.get('/my-appointments', verifyToken, doctorController.getAllMyAppointments);
 
-// ── Availability ──
-router.get('/availability', verifyToken, doctorController.getAvailability);
-router.put('/availability', verifyToken, doctorController.saveAvailability);
+// ── Qualifications ──
+router.get('/qualifications', verifyToken, doctorController.getQualifications);
+router.post('/qualifications', verifyToken, doctorController.addQualification);
+router.delete('/qualifications/:id', verifyToken, doctorController.deleteQualification);
 
 module.exports = router;

@@ -222,4 +222,119 @@ const sendDoctorNotification = async ({
   console.log(`✅ Doctor notification email sent to ${doctorEmail}`);
 };
 
-module.exports = { sendPatientConfirmation, sendDoctorNotification };
+// ── Send Welcome Email to Doctor ────────────────────────────────────────────────
+const sendDoctorWelcomeEmail = async ({
+  doctorEmail,
+  doctorName,
+  tempPassword,
+  resetLink,
+}) => {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.log("⚠️ Email not configured — skipping doctor welcome email");
+    return;
+  }
+
+  const transporter = createTransporter();
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+  const loginUrl = `${frontendUrl}/doctor-login`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: 'Inter', Arial, sans-serif; background: #f8fafc; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 40px auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+    .header { background: linear-gradient(135deg, #199A8E, #0d7a6e); padding: 40px 32px; text-align: center; }
+    .header h1 { color: white; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+    .header p { color: rgba(255,255,255,0.9); margin: 8px 0 0; font-size: 15px; }
+    .body { padding: 32px; }
+    .greeting { font-size: 18px; color: #0f172a; margin-bottom: 16px; font-weight: 700; }
+    .intro { color: #475569; font-size: 15px; line-height: 1.6; margin-bottom: 24px; }
+    .card { background: #f8fafc; border-radius: 12px; padding: 24px; margin-bottom: 24px; border: 1px solid #f1f5f9; }
+    .card-title { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 16px; }
+    .detail-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-label { color: #64748b; font-size: 14px; }
+    .detail-value { color: #0f172a; font-size: 14px; font-weight: 600; }
+    .detail-value.password-badge { font-family: monospace; background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+    .cta-container { text-align: center; margin: 32px 0; }
+    .cta-button { display: inline-block; background-color: #199A8E; color: white !important; font-weight: 700; font-size: 15px; padding: 14px 32px; text-decoration: none; border-radius: 10px; box-shadow: 0 4px 6px rgba(25, 154, 142, 0.15); transition: background-color 0.2s; }
+    .divider { height: 1px; background: #f1f5f9; margin: 32px 0; }
+    .reset-section { background: #f0fdfa; border: 1px solid #ccfbf1; border-radius: 12px; padding: 20px; }
+    .reset-title { color: #115e59; font-size: 14px; font-weight: 700; margin: 0 0 8px 0; }
+    .reset-text { color: #14b8a6; font-size: 13px; margin: 0 0 16px 0; line-height: 1.5; }
+    .reset-button { display: inline-block; background-color: #14b8a6; color: white !important; font-weight: 700; font-size: 13px; padding: 8px 16px; text-decoration: none; border-radius: 6px; }
+    .footer { background: #f8fafc; padding: 24px 32px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+    .footer p { margin: 4px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🏥 Welcome to Sehat AI</h1>
+      <p>Your Professional Doctor Account is Ready</p>
+    </div>
+    <div class="body">
+      <p class="greeting">Dear Dr. ${doctorName},</p>
+      <p class="intro">
+        An administrator has registered your professional account on the <strong>Sehat AI Healthcare Network</strong>. 
+        You now have access to your digital clinic where you can manage appointments, patients, and digital prescriptions.
+      </p>
+
+      <div class="card">
+        <div class="card-title">Login Credentials</div>
+        <div class="detail-row">
+          <span class="detail-label">Email Address</span>
+          <span class="detail-value">${doctorEmail}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Temporary Password</span>
+          <span class="detail-value"><code class="password-badge">${tempPassword}</code></span>
+        </div>
+      </div>
+
+      <div class="cta-container">
+        <a href="${loginUrl}" target="_blank" class="cta-button">Log In to Doctor Portal</a>
+      </div>
+
+      <div class="reset-section">
+        <h4 class="reset-title">🔒 Set a Custom Password</h4>
+        <p class="reset-text">
+          For your security, we highly recommend setting your own password before logging in. 
+          Use the secure link below to set up your password:
+        </p>
+        <a href="${resetLink}" target="_blank" class="reset-button">Set Custom Password</a>
+      </div>
+
+      <div class="divider"></div>
+
+      <p style="color: #64748b; font-size: 13px; line-height: 1.5; margin: 0;">
+        <strong>Note:</strong> If you did not expect this email or are not associated with Sehat AI, please contact our support team immediately.
+      </p>
+    </div>
+    <div class="footer">
+      <p>This is an automated message from <strong>Sehat AI Healthcare Network</strong></p>
+      <p>Please do not reply directly to this email.</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM || `Sehat AI <${process.env.EMAIL_USER}>`,
+    to: doctorEmail,
+    subject: `🏥 Welcome to Sehat AI — Your Account Credentials`,
+    html,
+  });
+
+  console.log(`✅ Welcome email sent to Dr. ${doctorName} at ${doctorEmail}`);
+};
+
+module.exports = {
+  sendPatientConfirmation,
+  sendDoctorNotification,
+  sendDoctorWelcomeEmail,
+};

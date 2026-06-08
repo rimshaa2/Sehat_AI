@@ -42,6 +42,10 @@ const Doctor = sequelize.define('Doctor', {
     type: DataTypes.TEXT, // Longer text for "About Doctor"
     allowNull: true
   },
+  qualifications: {
+    type: DataTypes.TEXT("long"), // Stores JSON array of qualifications
+    allowNull: true
+  },
   availabilityStatus: {
     type: DataTypes.BOOLEAN,
     defaultValue: true // To toggle "Online/Offline" manually

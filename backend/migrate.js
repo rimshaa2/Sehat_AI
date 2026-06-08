@@ -47,6 +47,19 @@ async function migrate() {
       console.log('⏭  cancellationDeadline already exists');
     }
 
+    // Add qualifications to Doctors table
+    const doctorTableDesc = await qi.describeTable('Doctors');
+    const doctorExisting = Object.keys(doctorTableDesc);
+    if (!doctorExisting.includes('qualifications')) {
+      await qi.addColumn('Doctors', 'qualifications', {
+        type: require('sequelize').DataTypes.TEXT('long'),
+        allowNull: true,
+      });
+      console.log('✅ Added qualifications to Doctors');
+    } else {
+      console.log('⏭  qualifications already exists in Doctors');
+    }
+
     console.log('\n✅ Migration complete. Restart your backend now.');
     process.exit(0);
   } catch (err) {

@@ -1,6 +1,8 @@
 const { User, Doctor, sequelize } = require("../models");
 const bcrypt = require("bcrypt");
 const admin = require("../config/firebase");
+const { sendDoctorWelcomeEmail } = require("../services/emailService");
+const crypto = require("crypto");
 
 exports.verifyDoctor = async (req, res) => {
   const { doctorId } = req.params;
@@ -46,6 +48,19 @@ exports.registerDoctor = async (req, res) => {
 
   const t = await sequelize.transaction();
 
+  // Generate a secure temporary password (12 characters: alphanumeric + special chars)
+  const generateTempPassword = () => {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^*";
+    const length = 12;
+    let password = "";
+    for (let i = 0; i < length; i++) {
+      const randomIndex = crypto.randomInt(0, chars.length);
+      password += chars[randomIndex];
+    }
+    return password;
+  };
+  const tempPassword = generateTempPassword();
+
   try {
     // 1. Check if user exists
     const existingUser = await User.findOne({ where: { email } });
@@ -58,7 +73,7 @@ exports.registerDoctor = async (req, res) => {
       try {
         firebaseUser = await admin.auth().createUser({
           email,
-          password: "TemporaryPassword123!",
+          password: tempPassword,
           displayName: fullName,
         });
       } catch (fbError) {
@@ -74,13 +89,13 @@ exports.registerDoctor = async (req, res) => {
         firebase_uid: firebaseUser ? firebaseUser.uid : null,
         fullName,
         email,
-        password: await bcrypt.hash("TemporaryPassword123!", 10),
+        password: await bcrypt.hash(tempPassword, 10),
         role: "doctor",
       },
       { transaction: t },
     );
 
-    // 3. Create Doctor Profile
+    // 4. Create Doctor Profile
     await Doctor.create(
       {
         userId: newUser.id,
@@ -93,7 +108,30 @@ exports.registerDoctor = async (req, res) => {
       { transaction: t },
     );
 
+    // Generate Firebase password reset/setup link
+    let resetLink = "";
+    if (admin) {
+      try {
+        resetLink = await admin.auth().generatePasswordResetLink(email);
+      } catch (linkError) {
+        console.error("⚠️ Failed to generate password reset link:", linkError.message);
+      }
+    }
+
     await t.commit();
+
+    // Send Welcome Email (async, but catch errors to prevent API crash)
+    try {
+      await sendDoctorWelcomeEmail({
+        doctorEmail: email,
+        doctorName: fullName,
+        tempPassword,
+        resetLink,
+      });
+    } catch (emailError) {
+      console.error("⚠️ Failed to send welcome email:", emailError.message);
+    }
+
     res.status(201).json({ message: "Doctor registered successfully" });
   } catch (error) {
     await t.rollback();

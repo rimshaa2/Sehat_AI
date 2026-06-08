@@ -15,6 +15,12 @@ import {
     Loader2,
     Shield,
     Key,
+    FileText,
+    Plus,
+    Trash2,
+    Eye,
+    UploadCloud,
+    Download,
 } from "lucide-react";
 import api from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
@@ -45,6 +51,121 @@ export const DoctorProfile = () => {
     const [isChangingPassword, setIsChangingPassword] = useState(false);
     
     const hasPasswordProvider = user?.providerData?.some(p => p.providerId === "password");
+
+    // ── Qualifications State & Event Handlers ──
+    const [qualifications, setQualifications] = useState<any[]>([]);
+    const [qualLoading, setQualLoading] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [newDoc, setNewDoc] = useState({
+        documentType: "Medical Degree (MBBS/MD)",
+        documentName: "",
+    });
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [viewDoc, setViewDoc] = useState<any | null>(null);
+
+    useEffect(() => {
+        if (activeTab === "qualifications") {
+            fetchQualifications();
+        }
+    }, [activeTab]);
+
+    const fetchQualifications = async () => {
+        setQualLoading(true);
+        try {
+            const res = await api.get("/doctors/qualifications");
+            setQualifications(res.data);
+        } catch (error) {
+            console.error("Failed to load qualifications", error);
+            toast.error("Failed to load qualifications");
+        } finally {
+            setQualLoading(false);
+        }
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            setSelectedFile(file);
+            if (!newDoc.documentName) {
+                const nameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                setNewDoc({ ...newDoc, documentName: nameWithoutExt });
+            }
+        }
+    };
+
+    const handleAddQualification = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedFile) {
+            toast.error("Please select a file to upload.");
+            return;
+        }
+        if (!newDoc.documentName.trim()) {
+            toast.error("Please enter a document name.");
+            return;
+        }
+
+        setUploading(true);
+        try {
+            const reader = new FileReader();
+            reader.readAsDataURL(selectedFile);
+            reader.onloadend = async () => {
+                const base64Data = reader.result as string;
+                try {
+                    const res = await api.post("/doctors/qualifications", {
+                        documentType: newDoc.documentType,
+                        documentName: newDoc.documentName,
+                        fileData: base64Data,
+                    });
+                    toast.success("Document uploaded successfully!");
+                    setQualifications((prev) => [...prev, res.data]);
+                    setSelectedFile(null);
+                    setNewDoc({
+                        documentType: "Medical Degree (MBBS/MD)",
+                        documentName: "",
+                    });
+                    const fileInput = document.getElementById("qual-file-input") as HTMLInputElement;
+                    if (fileInput) fileInput.value = "";
+                } catch (uploadError: any) {
+                    console.error("Upload endpoint error:", uploadError);
+                    toast.error(uploadError.response?.data?.error || "Failed to save document.");
+                } finally {
+                    setUploading(false);
+                }
+            };
+        } catch (error) {
+            console.error("FileReader error:", error);
+            toast.error("Failed to read file.");
+            setUploading(false);
+        }
+    };
+
+    const handleDeleteQualification = async (id: string) => {
+        if (!window.confirm("Are you sure you want to delete this qualification document?")) return;
+        try {
+            await api.delete(`/doctors/qualifications/${id}`);
+            toast.success("Document deleted successfully.");
+            setQualifications((prev) => prev.filter((q) => q.id !== id));
+            if (viewDoc?.id === id) {
+                setViewDoc(null);
+            }
+        } catch (error) {
+            console.error("Delete error:", error);
+            toast.error("Failed to delete document.");
+        }
+    };
+
+    const formatDate = (dateStr: string) => {
+        try {
+            const d = new Date(dateStr);
+            return d.toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+            });
+        } catch (e) {
+            return "Unknown Date";
+        }
+    };
 
     const handleChangePassword = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -521,15 +642,199 @@ export const DoctorProfile = () => {
                     )}
 
                     {activeTab === "qualifications" && (
-                        <div className="flex flex-col items-center justify-center py-16 text-center">
-                            <Calendar size={40} className="text-slate-300 mb-3" />
-                            <h3 className="text-base font-semibold text-slate-800">
-                                Qualifications & Certifications
-                            </h3>
-                            <p className="text-sm text-slate-500 mt-1 max-w-sm">
-                                Upload and manage your medical degrees, certifications, and
-                                training records. Coming soon.
-                            </p>
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+                                <div>
+                                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                        <FileText className="text-[#199A8E]" size={20} />
+                                        Qualifications & Certifications
+                                    </h3>
+                                    <p className="text-xs text-slate-500 mt-0.5">
+                                        Add and manage your medical degrees, certifications, and licenses.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {qualLoading ? (
+                                <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                                    <Loader2 className="animate-spin text-[#199A8E] mb-3" size={32} />
+                                    <p className="text-sm">Loading qualifications...</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                                    {/* Left side: Document list */}
+                                    <div className="lg:col-span-3 space-y-4">
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                                            Your Documents ({qualifications.length})
+                                        </h4>
+                                        
+                                        {qualifications.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 p-6">
+                                                <div className="p-4 bg-slate-100 rounded-full text-slate-400 mb-3">
+                                                    <FileText size={32} />
+                                                </div>
+                                                <h5 className="text-sm font-semibold text-slate-700">No documents uploaded</h5>
+                                                <p className="text-xs text-slate-400 mt-1 max-w-xs">
+                                                    Attach your MBBS degree, specialization certificate, or PMDC registration to complete your medical profile.
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                {qualifications.map((qual) => {
+                                                    let badgeColor = "bg-emerald-50 text-emerald-700 border-emerald-100";
+                                                    if (qual.documentType.includes("License") || qual.documentType.includes("PMDC")) {
+                                                        badgeColor = "bg-blue-50 text-blue-700 border-blue-100";
+                                                    } else if (qual.documentType.includes("Specialization")) {
+                                                        badgeColor = "bg-purple-50 text-purple-700 border-purple-100";
+                                                    } else if (qual.documentType.includes("Experience")) {
+                                                        badgeColor = "bg-amber-50 text-amber-700 border-amber-100";
+                                                    }
+
+                                                    return (
+                                                        <div 
+                                                            key={qual.id} 
+                                                            className="flex items-center justify-between p-4 bg-white border border-slate-150 rounded-2xl hover:shadow-md hover:border-slate-300 transition-all group"
+                                                        >
+                                                            <div className="flex items-center gap-3.5 min-w-0">
+                                                                <div className="p-3 bg-slate-50 text-slate-400 rounded-xl group-hover:bg-[#199A8E]/10 group-hover:text-[#199A8E] transition-colors shrink-0">
+                                                                    <FileText size={22} />
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <h5 className="text-sm font-semibold text-slate-800 truncate" title={qual.documentName}>
+                                                                        {qual.documentName}
+                                                                    </h5>
+                                                                    <div className="flex items-center gap-2 mt-1">
+                                                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${badgeColor}`}>
+                                                                            {qual.documentType}
+                                                                        </span>
+                                                                        <span className="text-[10px] text-slate-400">
+                                                                            Uploaded {formatDate(qual.uploadedAt)}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <div className="flex items-center gap-1 shrink-0">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setViewDoc(qual)}
+                                                                    className="p-2 text-slate-500 hover:text-[#199A8E] hover:bg-slate-50 rounded-xl transition-all"
+                                                                    title="View Document"
+                                                                >
+                                                                    <Eye size={16} />
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleDeleteQualification(qual.id)}
+                                                                    className="p-2 text-slate-400 hover:text-red-550 hover:bg-red-50 rounded-xl transition-all"
+                                                                    title="Delete Document"
+                                                                >
+                                                                    <Trash2 size={16} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Right side: Upload Form */}
+                                    <div className="lg:col-span-2">
+                                        <div className="bg-slate-50/50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                                            <h4 className="text-sm font-bold text-slate-800">
+                                                Attach Document
+                                            </h4>
+                                            
+                                            <form onSubmit={handleAddQualification} className="space-y-4">
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                                        Document Type
+                                                    </label>
+                                                    <select
+                                                        value={newDoc.documentType}
+                                                        onChange={(e) => setNewDoc({ ...newDoc, documentType: e.target.value })}
+                                                        className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#199A8E]/30 focus:border-[#199A8E] transition-all"
+                                                    >
+                                                        <option value="Medical Degree (MBBS/MD)">Medical Degree (MBBS/MD)</option>
+                                                        <option value="PMDC Registration Certificate">PMDC Registration Certificate</option>
+                                                        <option value="Specialization Certificate">Specialization Certificate</option>
+                                                        <option value="Experience Letter">Experience Letter</option>
+                                                        <option value="Other Certificate">Other Certificate</option>
+                                                    </select>
+                                                </div>
+
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                                        Document Display Name
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={newDoc.documentName}
+                                                        onChange={(e) => setNewDoc({ ...newDoc, documentName: e.target.value })}
+                                                        placeholder="e.g. MBBS Degree Certificate"
+                                                        className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#199A8E]/30 focus:border-[#199A8E] transition-all"
+                                                        required
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                                                        File Upload
+                                                    </label>
+                                                    <div className="relative border-2 border-dashed border-slate-200 hover:border-[#199A8E] rounded-xl bg-white p-6 text-center transition-all group cursor-pointer">
+                                                        <input
+                                                            id="qual-file-input"
+                                                            type="file"
+                                                            accept="image/*,application/pdf"
+                                                            onChange={handleFileChange}
+                                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                                        />
+                                                        <UploadCloud size={28} className="text-slate-400 mx-auto mb-2 group-hover:text-[#199A8E] group-hover:scale-110 transition-all" />
+                                                        {selectedFile ? (
+                                                            <div className="text-xs">
+                                                                <p className="font-semibold text-[#199A8E] truncate max-w-[200px] mx-auto">
+                                                                    {selectedFile.name}
+                                                                </p>
+                                                                <p className="text-slate-400 mt-0.5">
+                                                                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                                                                </p>
+                                                            </div>
+                                                        ) : (
+                                                            <div>
+                                                                <p className="text-xs font-semibold text-slate-600">
+                                                                    Click to browse or drag file here
+                                                                </p>
+                                                                <p className="text-[10px] text-slate-400 mt-1">
+                                                                    Accepts JPG, PNG, or PDF (max 5MB)
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <button
+                                                    type="submit"
+                                                    disabled={uploading || !selectedFile}
+                                                    className="w-full py-2.5 bg-[#199A8E] text-white rounded-xl text-sm font-bold hover:bg-[#15857a] shadow-lg shadow-emerald-100 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 flex justify-center items-center gap-2"
+                                                >
+                                                    {uploading ? (
+                                                        <>
+                                                            <Loader2 size={16} className="animate-spin" />
+                                                            Uploading...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Plus size={16} />
+                                                            Upload Document
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -635,6 +940,67 @@ export const DoctorProfile = () => {
                     )}
                 </div>
             </div>
+
+            {/* --- Document Viewer Modal --- */}
+            {viewDoc && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
+                        <div className="flex items-center justify-between p-4 border-b border-slate-100">
+                            <div>
+                                <h4 className="text-base font-bold text-slate-800">
+                                    {viewDoc.documentName}
+                                </h4>
+                                <span className="text-[11px] font-semibold text-slate-400">
+                                    {viewDoc.documentType}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <a
+                                    href={viewDoc.fileData}
+                                    download={viewDoc.documentName}
+                                    className="p-2 text-slate-500 hover:text-[#199A8E] hover:bg-slate-50 rounded-xl transition-all"
+                                    title="Download Document"
+                                >
+                                    <Download size={18} />
+                                </a>
+                                <button
+                                    type="button"
+                                    onClick={() => setViewDoc(null)}
+                                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-6 bg-slate-50 overflow-y-auto max-h-[75vh] flex items-center justify-center">
+                            {viewDoc.fileData.startsWith("data:application/pdf") ? (
+                                <div className="text-center py-10 w-full">
+                                    <FileText size={64} className="text-slate-350 mx-auto mb-4" />
+                                    <h5 className="text-sm font-semibold text-slate-700">PDF Document</h5>
+                                    <p className="text-xs text-slate-400 mt-1 mb-6">
+                                        This document is uploaded in PDF format and cannot be rendered inline.
+                                    </p>
+                                    <a
+                                        href={viewDoc.fileData}
+                                        download={viewDoc.documentName}
+                                        className="px-6 py-3 bg-[#199A8E] text-white rounded-xl text-sm font-bold hover:bg-[#15857a] shadow-lg shadow-emerald-100 transition-all inline-flex items-center gap-2"
+                                    >
+                                        <Download size={16} />
+                                        Download PDF to View
+                                    </a>
+                                </div>
+                            ) : (
+                                <img
+                                    src={viewDoc.fileData}
+                                    alt={viewDoc.documentName}
+                                    className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-sm"
+                                />
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
