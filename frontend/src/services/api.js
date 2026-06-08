@@ -173,7 +173,7 @@ export const deleteMedicalRecord = async (recordId) => {
 // Both now accept a `doctors` array and forward it to the Python service
 // ==========================================
 
-export const sendVoiceMessage = async (uri, language = 'en-US', userProfile = {}, doctors = []) => {
+export const sendVoiceMessage = async (uri, language = 'en-US', userProfile = {}, doctors = [], chatHistory = []) => {
   const formData = new FormData();
 
   const uriParts = uri.split('.');
@@ -187,7 +187,8 @@ export const sendVoiceMessage = async (uri, language = 'en-US', userProfile = {}
 
   formData.append('language', language);
   formData.append('userProfile', JSON.stringify(userProfile));
-  formData.append('doctors', JSON.stringify(doctors)); // NEW
+  formData.append('doctors', JSON.stringify(doctors));
+  formData.append('chatHistory', JSON.stringify(chatHistory));
 
   try {
     const response = await fetch(`${PYTHON_URL}/voice-chat`, {
@@ -203,7 +204,7 @@ export const sendVoiceMessage = async (uri, language = 'en-US', userProfile = {}
   }
 };
 
-export const sendTextMessage = async (text, language = 'en-US', userProfile = {}, doctors = []) => {
+export const sendTextMessage = async (text, language = 'en-US', userProfile = {}, doctors = [], chatHistory = []) => {
   try {
     const response = await fetch(`${PYTHON_URL}/text-chat`, {
       method: 'POST',
@@ -212,7 +213,8 @@ export const sendTextMessage = async (text, language = 'en-US', userProfile = {}
         text,
         language,
         userProfile,
-        doctors, // NEW
+        doctors,
+        chatHistory,
       }),
     });
     const data = await response.json();

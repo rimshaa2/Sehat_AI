@@ -15,17 +15,14 @@ import {
 } from "react-native";
 import { ChevronLeft, Search, Star, ChevronDown, X } from "lucide-react-native";
 import { getDoctors } from "../../services/api";
-
 import styles from "./styles/DoctorListStyles";
 
 export default ({ navigation, route }: any) => {
-  // 1. Get the category (Default to "All Doctors" if nothing passed)
   const categoryTitle = route.params?.specialty || "All Doctors";
 
   const [allDoctors, setAllDoctors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // -- Search & Filter State --
   const [searchQuery, setSearchQuery] = useState("");
   const [availableToday, setAvailableToday] = useState(false);
   const [genderModalVisible, setGenderModalVisible] = useState(false);
@@ -39,11 +36,10 @@ export default ({ navigation, route }: any) => {
       console.log("🔍 Fetching doctors for:", categoryTitle);
       setLoading(true);
       try {
-        // 🟢 NEW: Call your Node.js Backend (MySQL)
-        // If category is "All Doctors", we pass null so the API fetches everyone
-        let apiData = await getDoctors(categoryTitle === "All Doctors" ? null : categoryTitle);
+        let apiData = await getDoctors(
+          categoryTitle === "All Doctors" ? null : categoryTitle
+        );
 
-        // If a specific specialty has no records, show all doctors instead.
         if (categoryTitle !== "All Doctors" && apiData.length === 0) {
           const fallback = await getDoctors(null);
           if (fallback.length > 0) {
@@ -58,22 +54,33 @@ export default ({ navigation, route }: any) => {
 
         console.log(`✅ API Returned ${apiData.length} doctors`);
 
-        // 🟢 MAPPING: Convert MySQL Data Format -> UI Format
-        // This is crucial because your DB has 'consultationFee' but your UI expects 'price'
         const formattedList = apiData.map((doc: any) => ({
-          id: doc.id, // Ensure ID is string for FlatList
-          name: doc.user?.fullName || "Unknown Doctor", // Join from User Table
+          // ✅ FIX: Always convert id to string for FlatList keyExtractor
+          id: String(doc.id),
+
+          name: doc.user?.fullName || "Unknown Doctor",
           specialty: doc.specialization,
-          image: doc.user?.profilePicture || null, // Join from User Table
+          image: doc.user?.profilePicture || null,
 
-          // Price Formatting
           price: `Rs. ${doc.consultationFee}`,
-          priceValue: doc.consultationFee, // Keep raw number for sorting logic
+          priceValue: doc.consultationFee,
 
-          // ⚠️ Mocks for fields not yet in DB (Randomized so you can test filters)
+          // ✅ FIX: Use real gender from DB via User join (not randomized)
+          gender: doc.user?.gender || null,
+
+          // ✅ FIX: Use real experienceYears from DB for display
+          experience: doc.experienceYears || 0,
+
+          // ✅ FIX: Use real availabilityStatus from Doctor table
+          isAvailable: doc.availabilityStatus === true,
+
+          // Rating: kept as mock until you add a reviews table
           rating: (Math.random() * (5.0 - 3.5) + 3.5).toFixed(1),
-          gender: Math.random() > 0.5 ? 'Male' : 'Female',
-          isAvailable: true
+
+          // Extra fields for DoctorDetails screen
+          bio: doc.bio || "",
+          licenseNumber: doc.licenseNumber || "",
+          isVerified: doc.isVerified || false,
         }));
 
         setAllDoctors(formattedList);
@@ -84,14 +91,13 @@ export default ({ navigation, route }: any) => {
         setLoading(false);
       }
     };
+
     fetchDoctors();
   }, [categoryTitle]);
 
-  // 2. Client-Side Filtering (Kept exactly the same)
   const filteredDoctors = useMemo(() => {
     let result = [...allDoctors];
 
-    // Filter: Search Query (Name or Specialty)
     if (searchQuery.trim()) {
       const lowerQuery = searchQuery.toLowerCase();
       result = result.filter(
@@ -101,17 +107,16 @@ export default ({ navigation, route }: any) => {
       );
     }
 
-    // Filter: Availability
     if (availableToday) {
       result = result.filter((doc) => doc.isAvailable === true);
     }
 
-    // Filter: Gender
     if (selectedGender) {
-      result = result.filter((doc) => doc.gender === selectedGender);
+      result = result.filter(
+        (doc) => doc.gender?.toLowerCase() === selectedGender.toLowerCase()
+      );
     }
 
-    // Sort: Price
     if (priceSort) {
       result.sort((a, b) => {
         const pA = a.priceValue || 0;
@@ -129,15 +134,41 @@ export default ({ navigation, route }: any) => {
       onPress={() => navigation.navigate("DoctorDetails", { doctor: item })}
     >
       <Image
-        source={{ uri: item.image || 'https://via.placeholder.com/150' }}
+        source={{
+          uri:
+            item.image ||
+            "https://ui-avatars.com/api/?name=" +
+              encodeURIComponent(item.name) +
+              "&background=199A8E&color=fff&size=150",
+        }}
         style={styles.doctorImage}
       />
       <View style={styles.cardContent}>
         <Text style={styles.doctorName}>{item.name}</Text>
         <Text style={styles.specialty}>{item.specialty}</Text>
+        {/* ✅ Show experience years from DB */}
+        <Text style={{ fontSize: 12, color: "#6B7280", marginTop: 2 }}>
+          {item.experience} yrs experience
+        </Text>
         <Text style={styles.price}>{item.price}</Text>
       </View>
       <View style={styles.ratingContainer}>
+        {/* ✅ Show verified badge if doctor is verified */}
+        {item.isVerified && (
+          <View
+            style={{
+              backgroundColor: "#D1FAE5",
+              borderRadius: 6,
+              paddingHorizontal: 5,
+              paddingVertical: 2,
+              marginBottom: 4,
+            }}
+          >
+            <Text style={{ fontSize: 9, color: "#065F46", fontWeight: "700" }}>
+              ✓ Verified
+            </Text>
+          </View>
+        )}
         <Star size={14} color="#F59E0B" fill="#F59E0B" />
         <Text style={styles.ratingText}>{item.rating}</Text>
       </View>
@@ -148,7 +179,10 @@ export default ({ navigation, route }: any) => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
           <ChevronLeft color="#1C2A3A" size={24} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{categoryTitle}</Text>
@@ -173,7 +207,6 @@ export default ({ navigation, route }: any) => {
           )}
         </View>
 
-        {/* Filter Button (Visual only for now) */}
         <TouchableOpacity style={styles.filterBtnSquare}>
           <View style={styles.filterLine1} />
           <View style={styles.filterLine2} />
@@ -181,47 +214,91 @@ export default ({ navigation, route }: any) => {
         </TouchableOpacity>
       </View>
 
-      {/* Horizontal Filters Scroll */}
+      {/* Filters */}
       <View>
         {showingFallbackDoctors && (
-          <View style={{ marginHorizontal: 16, marginBottom: 8, backgroundColor: "#FEF3C7", padding: 10, borderRadius: 10 }}>
+          <View
+            style={{
+              marginHorizontal: 16,
+              marginBottom: 8,
+              backgroundColor: "#FEF3C7",
+              padding: 10,
+              borderRadius: 10,
+            }}
+          >
             <Text style={{ color: "#92400E", fontSize: 12 }}>
-              No doctors found in "{categoryTitle}". Showing all available doctors instead.
+              No doctors found in "{categoryTitle}". Showing all available
+              doctors instead.
             </Text>
           </View>
         )}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersScroll}>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filtersScroll}
+        >
           <TouchableOpacity
-            style={[styles.filterPill, availableToday && styles.filterPillActive]}
+            style={[
+              styles.filterPill,
+              availableToday && styles.filterPillActive,
+            ]}
             onPress={() => setAvailableToday(!availableToday)}
           >
-            <Text style={[styles.filterText, availableToday && styles.filterTextActive]}>Available Today</Text>
+            <Text
+              style={[
+                styles.filterText,
+                availableToday && styles.filterTextActive,
+              ]}
+            >
+              Available Today
+            </Text>
             {availableToday && <X size={14} color="#FFF" />}
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.filterPill, selectedGender && styles.filterPillActive]}
+            style={[
+              styles.filterPill,
+              selectedGender && styles.filterPillActive,
+            ]}
             onPress={() => setGenderModalVisible(true)}
           >
-            <Text style={[styles.filterText, selectedGender && styles.filterTextActive]}>
+            <Text
+              style={[
+                styles.filterText,
+                selectedGender && styles.filterTextActive,
+              ]}
+            >
               {selectedGender ? selectedGender : "Gender"}
             </Text>
-            <ChevronDown size={14} color={selectedGender ? "#FFF" : "#6B7280"} />
+            <ChevronDown
+              size={14}
+              color={selectedGender ? "#FFF" : "#6B7280"}
+            />
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.filterPill, priceSort && styles.filterPillActive]}
             onPress={() => setPriceModalVisible(true)}
           >
-            <Text style={[styles.filterText, priceSort && styles.filterTextActive]}>
-              {priceSort === 'asc' ? "Price: Low to High" : priceSort === 'desc' ? "Price: High to Low" : "Price"}
+            <Text
+              style={[
+                styles.filterText,
+                priceSort && styles.filterTextActive,
+              ]}
+            >
+              {priceSort === "asc"
+                ? "Price: Low to High"
+                : priceSort === "desc"
+                ? "Price: High to Low"
+                : "Price"}
             </Text>
             <ChevronDown size={14} color={priceSort ? "#FFF" : "#6B7280"} />
           </TouchableOpacity>
         </ScrollView>
       </View>
 
-      {/* List */}
+      {/* Doctor List */}
       {loading ? (
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <ActivityIndicator size="large" color="#199A8E" />
@@ -229,6 +306,7 @@ export default ({ navigation, route }: any) => {
       ) : (
         <FlatList
           data={filteredDoctors}
+          // ✅ FIX: id is already a string from formatting above
           keyExtractor={(item) => item.id}
           renderItem={renderDoctorItem}
           contentContainerStyle={styles.listContent}
@@ -237,13 +315,25 @@ export default ({ navigation, route }: any) => {
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyTitle}>No Doctors Found</Text>
               <Text style={styles.emptySubtitle}>
-                {searchQuery ? `No results for "${searchQuery}"` : "Try adjusting your filters or view all doctors"}
+                {searchQuery
+                  ? `No results for "${searchQuery}"`
+                  : "Try adjusting your filters or view all doctors"}
               </Text>
               <TouchableOpacity
-                style={{ marginTop: 12, backgroundColor: "#199A8E", borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 }}
-                onPress={() => navigation.replace("DoctorList", { specialty: "All Doctors" })}
+                style={{
+                  marginTop: 12,
+                  backgroundColor: "#199A8E",
+                  borderRadius: 10,
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                }}
+                onPress={() =>
+                  navigation.replace("DoctorList", { specialty: "All Doctors" })
+                }
               >
-                <Text style={{ color: "#FFF", fontWeight: "700" }}>View All Doctors</Text>
+                <Text style={{ color: "#FFF", fontWeight: "700" }}>
+                  View All Doctors
+                </Text>
               </TouchableOpacity>
             </View>
           }
@@ -257,17 +347,35 @@ export default ({ navigation, route }: any) => {
             <TouchableWithoutFeedback>
               <View style={styles.modalContent}>
                 <Text style={styles.modalHeader}>Select Gender</Text>
-                {['Male', 'Female'].map((g) => (
+                {["Male", "Female"].map((g) => (
                   <TouchableOpacity
                     key={g}
                     style={styles.modalOption}
-                    onPress={() => { setSelectedGender(g); setGenderModalVisible(false); }}
+                    onPress={() => {
+                      setSelectedGender(g);
+                      setGenderModalVisible(false);
+                    }}
                   >
-                    <Text style={[styles.modalOptionText, selectedGender === g && styles.modalOptionActive]}>{g}</Text>
+                    <Text
+                      style={[
+                        styles.modalOptionText,
+                        selectedGender === g && styles.modalOptionActive,
+                      ]}
+                    >
+                      {g}
+                    </Text>
                   </TouchableOpacity>
                 ))}
-                <TouchableOpacity style={styles.modalOption} onPress={() => { setSelectedGender(null); setGenderModalVisible(false); }}>
-                  <Text style={[styles.modalOptionText, { color: '#EF4444' }]}>Reset</Text>
+                <TouchableOpacity
+                  style={styles.modalOption}
+                  onPress={() => {
+                    setSelectedGender(null);
+                    setGenderModalVisible(false);
+                  }}
+                >
+                  <Text style={[styles.modalOptionText, { color: "#EF4444" }]}>
+                    Reset
+                  </Text>
                 </TouchableOpacity>
               </View>
             </TouchableWithoutFeedback>
@@ -282,14 +390,48 @@ export default ({ navigation, route }: any) => {
             <TouchableWithoutFeedback>
               <View style={styles.modalContent}>
                 <Text style={styles.modalHeader}>Sort by Price</Text>
-                <TouchableOpacity style={styles.modalOption} onPress={() => { setPriceSort('asc'); setPriceModalVisible(false); }}>
-                  <Text style={[styles.modalOptionText, priceSort === 'asc' && styles.modalOptionActive]}>Price: Low to High</Text>
+                <TouchableOpacity
+                  style={styles.modalOption}
+                  onPress={() => {
+                    setPriceSort("asc");
+                    setPriceModalVisible(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.modalOptionText,
+                      priceSort === "asc" && styles.modalOptionActive,
+                    ]}
+                  >
+                    Price: Low to High
+                  </Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.modalOption} onPress={() => { setPriceSort('desc'); setPriceModalVisible(false); }}>
-                  <Text style={[styles.modalOptionText, priceSort === 'desc' && styles.modalOptionActive]}>Price: High to Low</Text>
+                <TouchableOpacity
+                  style={styles.modalOption}
+                  onPress={() => {
+                    setPriceSort("desc");
+                    setPriceModalVisible(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.modalOptionText,
+                      priceSort === "desc" && styles.modalOptionActive,
+                    ]}
+                  >
+                    Price: High to Low
+                  </Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.modalOption} onPress={() => { setPriceSort(null); setPriceModalVisible(false); }}>
-                  <Text style={[styles.modalOptionText, { color: '#EF4444' }]}>Reset</Text>
+                <TouchableOpacity
+                  style={styles.modalOption}
+                  onPress={() => {
+                    setPriceSort(null);
+                    setPriceModalVisible(false);
+                  }}
+                >
+                  <Text style={[styles.modalOptionText, { color: "#EF4444" }]}>
+                    Reset
+                  </Text>
                 </TouchableOpacity>
               </View>
             </TouchableWithoutFeedback>
