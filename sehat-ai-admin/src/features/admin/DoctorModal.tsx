@@ -173,10 +173,34 @@ export const DoctorModal = ({
                   }}
                 >
                   <option value="" disabled>Select Specialization</option>
-                  <option value="Ear, Nose & Throat">Ear, Nose & Throat</option>
-                  <option value="Mental wellness">Mental wellness</option>
-                  <option value="Dental">Dental</option>
-                  <option value="Bones">Bones</option>
+<option value="Allergy & Immunology">Allergy & Immunology</option>
+<option value="Bones">Bones</option>
+<option value="Cardiology">Cardiology</option>
+<option value="Dental">Dental</option>
+<option value="Dermatology">Dermatology</option>
+<option value="Ear, Nose & Throat">Ear, Nose & Throat</option>
+<option value="Endocrinology">Endocrinology</option>
+<option value="General Practice">General Practice</option>
+<option value="General Surgery">General Surgery</option>
+<option value="Gastroenterology">Gastroenterology</option>
+<option value="Gynaecology">Gynaecology</option>
+<option value="Haematology">Haematology</option>
+<option value="Hepatology">Hepatology</option>
+<option value="Infectious Disease">Infectious Disease</option>
+<option value="Mental wellness">Mental wellness</option>
+<option value="Nephrology">Nephrology</option>
+<option value="Neurology">Neurology</option>
+<option value="Nutrition & Dietetics">Nutrition & Dietetics</option>
+<option value="Oncology">Oncology</option>
+<option value="Ophthalmology">Ophthalmology</option>
+<option value="Orthopaedics">Orthopaedics</option>
+<option value="Paediatrics">Paediatrics</option>
+<option value="Physiotherapy">Physiotherapy</option>
+<option value="Psychiatry">Psychiatry</option>
+<option value="Pulmonology">Pulmonology</option>
+<option value="Rheumatology">Rheumatology</option>
+<option value="Urology">Urology</option>
+<option value="Vascular Surgery">Vascular Surgery</option>
                 </select>
               </div>
               {fieldErrors.specialization && <p className="text-xs text-red-500 font-medium ml-1 mt-1">{fieldErrors.specialization}</p>}

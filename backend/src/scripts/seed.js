@@ -7,41 +7,9 @@ const seedDatabase = async () => {
     console.log("🔥 Database Wiped & Re-created!");
 
     const doctorsData = [
-      {
-        name: "Dr. Ayesha Khan",
-        email: "ayesha@sehat.com",
-        spec: "Ear, Nose & Throat",
-        price: 2500,
-        img: "https://randomuser.me/api/portraits/women/44.jpg",
-      },
-      {
-        name: "Dr. Ali Raza",
-        email: "ali@sehat.com",
-        spec: "Dental",
-        price: 1500,
-        img: "https://randomuser.me/api/portraits/men/32.jpg",
-      },
-      {
-        name: "Dr. Sarah Ahmed",
-        email: "sarah@sehat.com",
-        spec: "Mental wellness",
-        price: 3000,
-        img: "https://randomuser.me/api/portraits/women/68.jpg",
-      },
-      {
-        name: "Dr. Bilal Sheikh",
-        email: "bilal@sehat.com",
-        spec: "Bones",
-        price: 2000,
-        img: "https://randomuser.me/api/portraits/men/85.jpg",
-      },
-      {
-        name: "Dr. Hina Altaf",
-        email: "hina@sehat.com",
-        spec: "Ear, Nose & Throat",
-        price: 2800,
-        img: "https://randomuser.me/api/portraits/women/22.jpg",
-      },
+     
+      
+     
     ];
 
     for (let i = 0; i < doctorsData.length; i++) {

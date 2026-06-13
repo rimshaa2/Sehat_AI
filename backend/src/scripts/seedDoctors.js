@@ -8,6 +8,7 @@
 //
 // After running, the AI assistant can recommend doctors by specialty
 // based on patient symptoms with high accuracy.
+//password:SehatDoctor@123
 // ─────────────────────────────────────────────────────────────────────────────
 
 const { sequelize, User, Doctor, Availability } = require("../models");

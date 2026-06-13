@@ -46,7 +46,7 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 const allowedOrigins = [
   "http://localhost:5173",
-  "http://192.168.18.38:5173",
+  "http://192.168.151.15:5173",
   "https://your-admin-panel.vercel.app",
 ];
 app.use(

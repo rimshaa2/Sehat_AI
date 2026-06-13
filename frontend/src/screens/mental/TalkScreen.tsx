@@ -12,9 +12,25 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { getDoctors } from "../../services/api";
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// ── Only show doctors whose specialization matches mental health ──────────────
+const MENTAL_HEALTH_KEYWORDS = [
+  "mental",
+  "psychiatr",
+  "psycholog",
+  "counsel",
+  "therap",
+  "behavior",
+  "wellness",
+  "anxiety",
+  "depression",
+  "neuropsych",
+];
 
-// Chat and Voice only — Video removed
+const isMentalHealthDoctor = (specialization: string) => {
+  const lower = (specialization || "").toLowerCase();
+  return MENTAL_HEALTH_KEYWORDS.some((kw) => lower.includes(kw));
+};
+
 const SESSION_TYPES = [
   { label: "Chat",  icon: "chatbubble-outline" as const },
   { label: "Voice", icon: "call-outline"        as const },
@@ -32,8 +48,6 @@ const getInitials = (fullName: string) => {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 };
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
 type Doctor = {
   id: number;
   specialization: string;
@@ -49,13 +63,29 @@ type Doctor = {
   };
 };
 
-// ── Screen ────────────────────────────────────────────────────────────────────
+const buildDoctorNavObject = (doctor: Doctor) => ({
+  id:                 doctor.id,
+  name:               doctor.user?.fullName || "Doctor",
+  specialty:          doctor.specialization,
+  specialization:     doctor.specialization,
+  priceValue:         Number(doctor.consultationFee) || 1500,
+  rating:             4.5,
+  experience:         doctor.experienceYears > 0
+                        ? `${doctor.experienceYears} years`
+                        : "5+ years",
+  patients:           200,
+  bio:                doctor.bio || "",
+  availabilityStatus: doctor.availabilityStatus,
+});
 
 function TalkScreen({ navigation }: { navigation: any }) {
   const [activeSession, setActiveSession] = useState(0);
-  const [doctors, setDoctors]             = useState<Doctor[]>([]);
-  const [loading, setLoading]             = useState(true);
-  const [error, setError]                 = useState(false);
+  const [allDoctors,    setAllDoctors]    = useState<Doctor[]>([]);
+  const [loading,       setLoading]       = useState(true);
+  const [error,         setError]         = useState(false);
+
+  // Filtered to mental health specializations only
+  const doctors = allDoctors.filter((d) => isMentalHealthDoctor(d.specialization));
 
   useEffect(() => {
     fetchDoctors();
@@ -65,10 +95,8 @@ function TalkScreen({ navigation }: { navigation: any }) {
     setLoading(true);
     setError(false);
     try {
-      // Fetch ALL doctors — no specialization filter so nothing gets hidden
       const data = await getDoctors();
-      const list: Doctor[] = Array.isArray(data) ? data : [];
-      setDoctors(list);
+      setAllDoctors(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("TalkScreen: Failed to load doctors:", err);
       setError(true);
@@ -77,39 +105,49 @@ function TalkScreen({ navigation }: { navigation: any }) {
     }
   };
 
-  // ── Navigation ──────────────────────────────────────────────────────────────
-
+  // Navigate to DoctorDetails so the user can book and then chat
   const handleBook = (doctor: Doctor) => {
-    navigation.navigate("BookAppointment", { doctorId: doctor.id });
+    navigation.navigate("DoctorDetails", {
+      doctor: buildDoctorNavObject(doctor),
+    });
   };
 
+  // Chat requires an active appointment (LiveChat uses appointmentId as the
+  // socket room key). Direct the user to book first, then chat from the
+  // appointment detail screen.
   const handleChat = (doctor: Doctor) => {
-    // Navigates to AI Assistant with doctor context.
-    // When a dedicated DoctorChatScreen is built, swap the route name here.
-    navigation.navigate("AiAssistant", {
-      doctorId:   doctor.id,
-      doctorName: doctor.user?.fullName,
-    });
+    Alert.alert(
+      "Book to Start Chatting",
+      `To chat with ${doctor.user?.fullName || "this doctor"}, you need an active appointment. Book one now?`,
+      [
+        { text: "Not Now", style: "cancel" },
+        {
+          text: "Book Appointment",
+          onPress: () => handleBook(doctor),
+        },
+      ]
+    );
+  };
+
+  // Voice session: always requires a booking
+  const handleVoice = (doctor: Doctor) => {
+    Alert.alert(
+      "Voice Session",
+      "Voice sessions take place at your scheduled appointment time. Would you like to book one?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Book Appointment", onPress: () => handleBook(doctor) },
+      ]
+    );
   };
 
   const handleSessionAction = (doctor: Doctor) => {
     if (activeSession === 0) {
-      // Chat tab selected
       handleChat(doctor);
     } else {
-      // Voice tab — no live call yet, guide to booking
-      Alert.alert(
-        "Voice Session",
-        "Voice sessions take place at your scheduled appointment time. Would you like to book one?",
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Book Appointment", onPress: () => handleBook(doctor) },
-        ],
-      );
+      handleVoice(doctor);
     }
   };
-
-  // ── Card render ─────────────────────────────────────────────────────────────
 
   const renderCard = (doctor: Doctor, index: number) => {
     const name     = doctor.user?.fullName || "Doctor";
@@ -121,7 +159,7 @@ function TalkScreen({ navigation }: { navigation: any }) {
     return (
       <View key={doctor.id} style={styles.card}>
 
-        {/* Top row: avatar + info + status */}
+        {/* Top row */}
         <View style={styles.cardTop}>
           <View style={[styles.avatar, { backgroundColor: color }]}>
             <Text style={styles.avatarText}>{initials}</Text>
@@ -131,7 +169,7 @@ function TalkScreen({ navigation }: { navigation: any }) {
           <View style={styles.info}>
             <Text style={styles.doctorName}>{name}</Text>
             <Text style={styles.specialization} numberOfLines={1}>
-              {doctor.specialization || "General Practitioner"}
+              {doctor.specialization || "Mental Health Specialist"}
             </Text>
             <View style={styles.expRow}>
               <Ionicons name="briefcase-outline" size={12} color="#9E9E9E" />
@@ -171,7 +209,7 @@ function TalkScreen({ navigation }: { navigation: any }) {
           </View>
 
           <View style={styles.buttonsRow}>
-            {/* Chat / Voice button — reflects selected session type */}
+            {/* Chat/Call button — prompts to book first */}
             <TouchableOpacity
               style={styles.outlineBtn}
               onPress={() => handleSessionAction(doctor)}
@@ -187,7 +225,7 @@ function TalkScreen({ navigation }: { navigation: any }) {
               </Text>
             </TouchableOpacity>
 
-            {/* Book appointment */}
+            {/* Book directly */}
             <TouchableOpacity
               style={styles.bookBtn}
               onPress={() => handleBook(doctor)}
@@ -201,8 +239,6 @@ function TalkScreen({ navigation }: { navigation: any }) {
       </View>
     );
   };
-
-  // ── Main render ─────────────────────────────────────────────────────────────
 
   return (
     <SafeAreaView style={styles.container}>
@@ -218,7 +254,7 @@ function TalkScreen({ navigation }: { navigation: any }) {
         </TouchableOpacity>
         <View>
           <Text style={styles.headerTitle}>Talk to Expert</Text>
-          <Text style={styles.headerSub}>Professional health support</Text>
+          <Text style={styles.headerSub}>Mental health support</Text>
         </View>
       </View>
 
@@ -256,16 +292,24 @@ function TalkScreen({ navigation }: { navigation: any }) {
           </View>
         </View>
 
-        {/* Heading */}
+        {/* Info banner explaining chat flow */}
+        <View style={styles.infoBanner}>
+          <Ionicons name="information-circle-outline" size={16} color="#5BA89D" />
+          <Text style={styles.infoBannerText}>
+            Book an appointment to start a private chat or voice session with your doctor.
+          </Text>
+        </View>
+
         <Text style={styles.sectionHeading}>
-          {loading ? "Finding Doctors..." : `${doctors.length} Doctor${doctors.length !== 1 ? "s" : ""} Available`}
+          {loading
+            ? "Finding Specialists..."
+            : `${doctors.length} Mental Health Specialist${doctors.length !== 1 ? "s" : ""}`}
         </Text>
 
-        {/* States */}
         {loading ? (
           <View style={styles.centerState}>
             <ActivityIndicator size="large" color="white" />
-            <Text style={styles.stateText}>Loading doctors...</Text>
+            <Text style={styles.stateText}>Loading specialists...</Text>
           </View>
         ) : error ? (
           <View style={styles.centerState}>
@@ -277,10 +321,10 @@ function TalkScreen({ navigation }: { navigation: any }) {
           </View>
         ) : doctors.length === 0 ? (
           <View style={styles.centerState}>
-            <Ionicons name="person-outline" size={44} color="rgba(255,255,255,0.5)" />
-            <Text style={styles.stateTitle}>No Doctors Found</Text>
+            <Ionicons name="heart-outline" size={44} color="rgba(255,255,255,0.5)" />
+            <Text style={styles.stateTitle}>No Specialists Found</Text>
             <Text style={styles.stateSubText}>
-              No doctors are registered in the system yet.
+              No mental health specialists are registered yet. Check back soon.
             </Text>
             <TouchableOpacity style={styles.retryBtn} onPress={fetchDoctors}>
               <Text style={styles.retryBtnText}>Refresh</Text>
@@ -296,165 +340,98 @@ function TalkScreen({ navigation }: { navigation: any }) {
 
 export default TalkScreen;
 
-// ── Styles ────────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#5BA89D" },
   scroll:    { paddingBottom: 40 },
-
-  // Header
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 16,
-    gap: 12,
+    flexDirection: "row", alignItems: "center",
+    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16, gap: 12,
   },
   backBtn:     { padding: 6 },
   headerTitle: { fontSize: 20, fontWeight: "800", color: "white" },
   headerSub:   { fontSize: 13, color: "#C8EAE6", marginTop: 2 },
 
-  // Session type card
+  infoBanner: {
+    flexDirection: "row", alignItems: "flex-start", gap: 8,
+    backgroundColor: "white", marginHorizontal: 16, marginBottom: 12,
+    borderRadius: 12, padding: 12,
+  },
+  infoBannerText: {
+    flex: 1, fontSize: 12, color: "#424242", lineHeight: 17,
+  },
+
   sessionCard: {
-    backgroundColor: "white",
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 20,
-    padding: 18,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    backgroundColor: "white", marginHorizontal: 16, marginBottom: 16,
+    borderRadius: 20, padding: 18, elevation: 3,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 8,
   },
   sessionLabel: { fontSize: 13, fontWeight: "600", color: "#757575", marginBottom: 12 },
   sessionRow:   { flexDirection: "row", gap: 12 },
   sessionBtn: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: "#F5F5F5",
-    gap: 6,
+    flex: 1, alignItems: "center", paddingVertical: 14,
+    borderRadius: 14, backgroundColor: "#F5F5F5", gap: 6,
   },
   sessionBtnActive: { backgroundColor: "#5BA89D" },
   sessionBtnText:   { fontSize: 13, fontWeight: "600", color: "#757575" },
-
-  // Section heading
   sectionHeading: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "rgba(255,255,255,0.9)",
-    marginHorizontal: 16,
-    marginBottom: 12,
+    fontSize: 15, fontWeight: "700", color: "rgba(255,255,255,0.9)",
+    marginHorizontal: 16, marginBottom: 12,
   },
-
-  // Doctor card
   card: {
-    backgroundColor: "white",
-    marginHorizontal: 16,
-    marginBottom: 14,
-    borderRadius: 20,
-    padding: 16,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    backgroundColor: "white", marginHorizontal: 16, marginBottom: 14,
+    borderRadius: 20, padding: 16, elevation: 3,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 8,
   },
-  cardTop: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 10,
-  },
+  cardTop:        { flexDirection: "row", alignItems: "flex-start", marginBottom: 10 },
   avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
+    width: 52, height: 52, borderRadius: 16,
+    alignItems: "center", justifyContent: "center", marginRight: 12,
   },
-  avatarText: { fontSize: 18, fontWeight: "800", color: "white" },
+  avatarText:     { fontSize: 18, fontWeight: "800", color: "white" },
   onlineDot: {
-    position: "absolute",
-    top: 2,
-    right: 2,
-    width: 11,
-    height: 11,
-    borderRadius: 6,
-    backgroundColor: "#4CAF50",
-    borderWidth: 2,
-    borderColor: "white",
+    position: "absolute", top: 2, right: 2,
+    width: 11, height: 11, borderRadius: 6,
+    backgroundColor: "#4CAF50", borderWidth: 2, borderColor: "white",
   },
   info:           { flex: 1 },
   doctorName:     { fontSize: 15, fontWeight: "700", color: "#212121" },
   specialization: { fontSize: 12, color: "#757575", marginTop: 2, textTransform: "capitalize" },
   expRow:         { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
   expText:        { fontSize: 12, color: "#9E9E9E" },
-
-  // Status pill
   statusPill:       { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 20, alignSelf: "flex-start" },
   statusPillOn:     { backgroundColor: "#E8F5E9" },
   statusPillOff:    { backgroundColor: "#F5F5F5" },
   statusPillText:   { fontSize: 11, fontWeight: "700" },
   statusPillTextOn: { color: "#2E7D32" },
   statusPillTextOff:{ color: "#9E9E9E" },
-
-  // Bio
   bio: { fontSize: 13, color: "#616161", lineHeight: 18, marginBottom: 10 },
-
-  // Card footer
   cardFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderTopWidth: 1,
-    borderTopColor: "#F5F5F5",
-    paddingTop: 12,
-    marginTop: 2,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    borderTopWidth: 1, borderTopColor: "#F5F5F5", paddingTop: 12, marginTop: 2,
   },
-  feeRow: { flexDirection: "row", alignItems: "center", gap: 5 },
-  feeText: { fontSize: 13, color: "#757575", fontWeight: "600" },
-
+  feeRow:   { flexDirection: "row", alignItems: "center", gap: 5 },
+  feeText:  { fontSize: 13, color: "#757575", fontWeight: "600" },
   buttonsRow: { flexDirection: "row", gap: 8 },
-
   outlineBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    borderWidth: 1.5,
-    borderColor: "#5BA89D",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    flexDirection: "row", alignItems: "center", gap: 5,
+    borderWidth: 1.5, borderColor: "#5BA89D",
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
   },
   outlineBtnText: { fontSize: 13, fontWeight: "700", color: "#5BA89D" },
-
   bookBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: "#5BA89D",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    flexDirection: "row", alignItems: "center", gap: 5,
+    backgroundColor: "#5BA89D", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
   },
-  bookBtnText: { fontSize: 13, fontWeight: "700", color: "white" },
-
-  // Center states
-  centerState: { alignItems: "center", paddingVertical: 48, paddingHorizontal: 32, gap: 10 },
+  bookBtnText:  { fontSize: 13, fontWeight: "700", color: "white" },
+  centerState:  { alignItems: "center", paddingVertical: 48, paddingHorizontal: 32, gap: 10 },
   stateText:    { color: "rgba(255,255,255,0.85)", fontSize: 14, textAlign: "center" },
   stateTitle:   { color: "white", fontSize: 17, fontWeight: "700" },
   stateSubText: { color: "rgba(255,255,255,0.7)", fontSize: 13, textAlign: "center", lineHeight: 19 },
-
   retryBtn: {
-    marginTop: 6,
-    backgroundColor: "white",
-    paddingHorizontal: 22,
-    paddingVertical: 10,
-    borderRadius: 20,
+    marginTop: 6, backgroundColor: "white",
+    paddingHorizontal: 22, paddingVertical: 10, borderRadius: 20,
   },
   retryBtnText: { color: "#5BA89D", fontWeight: "700", fontSize: 14 },
 });

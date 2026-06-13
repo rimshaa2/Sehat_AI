@@ -77,7 +77,6 @@ else:
 
 GROQ_MODEL = "llama-3.3-70b-versatile"
 os.makedirs("temp", exist_ok=True)
-
 FEEDBACK_LOG_FILE = "feedback_log.jsonl"
 
 
@@ -110,9 +109,268 @@ def get_local_ip():
         return "127.0.0.1"
 
 
+# ── Symptom to Specialty Mapping ──────────────────────────────────────────────
+# The AI only sees doctors relevant to the patient's symptoms.
+# This prevents random doctor suggestions unrelated to the condition.
+SYMPTOM_SPECIALTY_MAP = {
+    # Heart / Chest
+    "chest pain":          ["Cardiology"],
+    "heart":               ["Cardiology"],
+    "palpitation":         ["Cardiology"],
+    "blood pressure":      ["Cardiology", "General Practice"],
+    "hypertension":        ["Cardiology", "General Practice"],
+    "cholesterol":         ["Cardiology", "Endocrinology"],
+    "shortness of breath": ["Cardiology", "Pulmonology"],
+    "angina":              ["Cardiology"],
+    # Lungs
+    "asthma":              ["Pulmonology"],
+    "breathing":           ["Pulmonology", "Cardiology"],
+    "cough":               ["Pulmonology", "General Practice", "Ear, Nose & Throat"],
+    "lungs":               ["Pulmonology"],
+    "bronchitis":          ["Pulmonology"],
+    "pneumonia":           ["Pulmonology", "Infectious Disease"],
+    "tuberculosis":        ["Pulmonology", "Infectious Disease"],
+    "tb":                  ["Pulmonology", "Infectious Disease"],
+    "copd":                ["Pulmonology"],
+    "wheezing":            ["Pulmonology", "Allergy & Immunology"],
+    # Stomach / Digestive
+    "stomach":             ["Gastroenterology", "General Practice"],
+    "acidity":             ["Gastroenterology"],
+    "gastric":             ["Gastroenterology"],
+    "ulcer":               ["Gastroenterology"],
+    "liver":               ["Hepatology", "Gastroenterology"],
+    "hepatitis":           ["Hepatology", "Infectious Disease"],
+    "jaundice":            ["Hepatology", "Gastroenterology"],
+    "constipation":        ["Gastroenterology", "General Practice"],
+    "diarrhea":            ["Gastroenterology", "Infectious Disease", "General Practice"],
+    "vomiting":            ["Gastroenterology", "General Practice"],
+    "nausea":              ["Gastroenterology", "General Practice"],
+    "ibs":                 ["Gastroenterology"],
+    "bloating":            ["Gastroenterology"],
+    "indigestion":         ["Gastroenterology", "General Practice"],
+    "heartburn":           ["Gastroenterology"],
+    "gerd":                ["Gastroenterology"],
+    # Brain / Neuro
+    "headache":            ["Neurology", "General Practice"],
+    "migraine":            ["Neurology"],
+    "seizure":             ["Neurology"],
+    "epilepsy":            ["Neurology"],
+    "stroke":              ["Neurology"],
+    "dizziness":           ["Neurology", "Ear, Nose & Throat"],
+    "vertigo":             ["Neurology", "Ear, Nose & Throat"],
+    "nerve":               ["Neurology"],
+    "numbness":            ["Neurology", "Orthopaedics"],
+    "tremor":              ["Neurology"],
+    "memory":              ["Neurology", "Psychiatry"],
+    "parkinson":           ["Neurology"],
+    "paralysis":           ["Neurology"],
+    "brain":               ["Neurology"],
+    "confusion":           ["Neurology", "General Practice"],
+    # Bones / Joints
+    "joint":               ["Orthopaedics", "Rheumatology"],
+    "back pain":           ["Orthopaedics", "Physiotherapy"],
+    "knee":                ["Orthopaedics"],
+    "bone":                ["Orthopaedics", "Bones"],
+    "fracture":            ["Orthopaedics"],
+    "arthritis":           ["Rheumatology", "Orthopaedics"],
+    "gout":                ["Rheumatology"],
+    "lupus":               ["Rheumatology"],
+    "muscle":              ["Orthopaedics", "Physiotherapy"],
+    "spine":               ["Orthopaedics"],
+    "slip disc":           ["Orthopaedics"],
+    "sciatica":            ["Orthopaedics", "Physiotherapy"],
+    "osteoporosis":        ["Orthopaedics", "Bones", "Endocrinology"],
+    "shoulder":            ["Orthopaedics"],
+    "hip":                 ["Orthopaedics"],
+    "wrist":               ["Orthopaedics"],
+    "ankle":               ["Orthopaedics"],
+    # Diabetes / Hormones
+    "diabetes":            ["Endocrinology", "General Practice"],
+    "sugar":               ["Endocrinology", "General Practice"],
+    "thyroid":             ["Endocrinology"],
+    "hormone":             ["Endocrinology", "Gynaecology"],
+    "pcos":                ["Endocrinology", "Gynaecology"],
+    "obesity":             ["Endocrinology", "Nutrition & Dietetics"],
+    "weight gain":         ["Endocrinology", "Nutrition & Dietetics"],
+    "weight loss":         ["Endocrinology", "Nutrition & Dietetics", "General Practice"],
+    "insulin":             ["Endocrinology"],
+    "hyperthyroid":        ["Endocrinology"],
+    "hypothyroid":         ["Endocrinology"],
+    # Kidney / Urinary
+    "kidney":              ["Nephrology", "Urology"],
+    "kidney stone":        ["Urology", "Nephrology"],
+    "urinary":             ["Urology"],
+    "uti":                 ["Urology", "General Practice"],
+    "urine":               ["Urology", "Nephrology"],
+    "prostate":            ["Urology"],
+    "dialysis":            ["Nephrology"],
+    "bladder":             ["Urology"],
+    "renal":               ["Nephrology"],
+    # Mental Health
+    "depression":          ["Psychiatry", "Mental wellness"],
+    "anxiety":             ["Psychiatry", "Mental wellness"],
+    "stress":              ["Psychiatry", "Mental wellness"],
+    "mental":              ["Psychiatry", "Mental wellness"],
+    "sleep":               ["Psychiatry", "Pulmonology"],
+    "insomnia":            ["Psychiatry"],
+    "ocd":                 ["Psychiatry"],
+    "ptsd":                ["Psychiatry", "Mental wellness"],
+    "bipolar":             ["Psychiatry"],
+    "panic":               ["Psychiatry", "Mental wellness"],
+    "phobia":              ["Psychiatry", "Mental wellness"],
+    "adhd":                ["Psychiatry"],
+    "autism":              ["Psychiatry"],
+    "suicidal":            ["Psychiatry", "Mental wellness"],
+    "sad":                 ["Psychiatry", "Mental wellness"],
+    "mood":                ["Psychiatry", "Mental wellness"],
+    # Skin
+    "skin":                ["Dermatology"],
+    "acne":                ["Dermatology"],
+    "rash":                ["Dermatology", "Allergy & Immunology"],
+    "eczema":              ["Dermatology"],
+    "psoriasis":           ["Dermatology"],
+    "hair loss":           ["Dermatology"],
+    "itching":             ["Dermatology", "Allergy & Immunology"],
+    "allergy":             ["Allergy & Immunology", "Dermatology"],
+    "hives":               ["Allergy & Immunology", "Dermatology"],
+    "fungal":              ["Dermatology"],
+    "vitiligo":            ["Dermatology"],
+    "pimple":              ["Dermatology"],
+    # Eyes
+    "eye":                 ["Ophthalmology"],
+    "vision":              ["Ophthalmology"],
+    "glasses":             ["Ophthalmology"],
+    "cataract":            ["Ophthalmology"],
+    "glaucoma":            ["Ophthalmology"],
+    "retina":              ["Ophthalmology"],
+    "blurry":              ["Ophthalmology"],
+    "red eye":             ["Ophthalmology"],
+    # ENT
+    "ear":                 ["Ear, Nose & Throat"],
+    "hearing":             ["Ear, Nose & Throat"],
+    "nose":                ["Ear, Nose & Throat"],
+    "throat":              ["Ear, Nose & Throat", "General Practice"],
+    "sinus":               ["Ear, Nose & Throat"],
+    "tonsil":              ["Ear, Nose & Throat"],
+    "snoring":             ["Ear, Nose & Throat"],
+    "runny nose":          ["Ear, Nose & Throat", "General Practice"],
+    # Women
+    "period":              ["Gynaecology"],
+    "menstrual":           ["Gynaecology"],
+    "pregnancy":           ["Gynaecology"],
+    "fertility":           ["Gynaecology"],
+    "menopause":           ["Gynaecology"],
+    "ovarian":             ["Gynaecology"],
+    "uterus":              ["Gynaecology"],
+    "cervical":            ["Gynaecology"],
+    # Children
+    "child":               ["Paediatrics"],
+    "baby":                ["Paediatrics"],
+    "infant":              ["Paediatrics"],
+    "newborn":             ["Paediatrics"],
+    "kids":                ["Paediatrics"],
+    "vaccination":         ["Paediatrics", "General Practice"],
+    "growth":              ["Paediatrics", "Endocrinology"],
+    "toddler":             ["Paediatrics"],
+    # Dental
+    "teeth":               ["Dental"],
+    "tooth":               ["Dental"],
+    "dental":              ["Dental"],
+    "gum":                 ["Dental"],
+    "cavity":              ["Dental"],
+    "jaw":                 ["Dental"],
+    "toothache":           ["Dental"],
+    # Blood / Cancer
+    "blood":               ["Haematology", "General Practice"],
+    "anaemia":             ["Haematology"],
+    "anemia":              ["Haematology"],
+    "thalassemia":         ["Haematology"],
+    "cancer":              ["Oncology"],
+    "tumor":               ["Oncology"],
+    "leukaemia":           ["Oncology", "Haematology"],
+    "lymphoma":            ["Oncology", "Haematology"],
+    "platelet":            ["Haematology"],
+    # Infections / Fever
+    "fever":               ["General Practice", "Infectious Disease"],
+    "flu":                 ["General Practice"],
+    "cold":                ["General Practice", "Ear, Nose & Throat"],
+    "dengue":              ["Infectious Disease", "General Practice"],
+    "typhoid":             ["Infectious Disease", "General Practice"],
+    "malaria":             ["Infectious Disease", "General Practice"],
+    "hiv":                 ["Infectious Disease"],
+    "infection":           ["General Practice", "Infectious Disease"],
+    "covid":               ["General Practice", "Pulmonology"],
+    # Nutrition
+    "diet":                ["Nutrition & Dietetics"],
+    "nutrition":           ["Nutrition & Dietetics"],
+    "vitamin":             ["General Practice", "Nutrition & Dietetics"],
+    # Physiotherapy
+    "physiotherapy":       ["Physiotherapy"],
+    "rehabilitation":      ["Physiotherapy"],
+    "sports injury":       ["Physiotherapy", "Orthopaedics"],
+    "posture":             ["Physiotherapy", "Orthopaedics"],
+    # Vascular
+    "varicose":            ["Vascular Surgery"],
+    "clot":                ["Vascular Surgery", "Haematology"],
+    "vein":                ["Vascular Surgery"],
+    "artery":              ["Vascular Surgery", "Cardiology"],
+    # General
+    "pain":                ["General Practice", "Orthopaedics"],
+    "fatigue":             ["General Practice", "Endocrinology"],
+    "weakness":            ["General Practice", "Neurology"],
+    "swelling":            ["General Practice", "Orthopaedics", "Nephrology"],
+    "burning":             ["General Practice", "Urology", "Gastroenterology"],
+    "tired":               ["General Practice", "Endocrinology"],
+    "dizzy":               ["Neurology", "General Practice"],
+    # Urdu
+    "بخار":                ["General Practice", "Infectious Disease"],
+    "درد":                 ["General Practice", "Orthopaedics"],
+    "کھانسی":              ["Pulmonology", "General Practice"],
+    "سانس":                ["Pulmonology", "Cardiology"],
+    "سر درد":              ["Neurology", "General Practice"],
+    "پیٹ":                 ["Gastroenterology", "General Practice"],
+    "جوڑوں":               ["Orthopaedics", "Rheumatology"],
+    "شوگر":                ["Endocrinology", "General Practice"],
+    "دل":                  ["Cardiology"],
+    "گردہ":                ["Nephrology", "Urology"],
+    "جلد":                 ["Dermatology"],
+    "آنکھ":                ["Ophthalmology"],
+    "کان":                 ["Ear, Nose & Throat"],
+    "ناک":                 ["Ear, Nose & Throat"],
+    "حمل":                 ["Gynaecology"],
+    "ذہنی":                ["Psychiatry", "Mental wellness"],
+}
+
+
+def get_relevant_specialties(user_text: str) -> list:
+    text_lower = user_text.lower()
+    matched    = set()
+    for keyword, specialties in SYMPTOM_SPECIALTY_MAP.items():
+        if keyword in text_lower:
+            for s in specialties:
+                matched.add(s)
+    matched.add("General Practice")
+    return list(matched)
+
+
+def filter_doctors_by_specialty(doctors: list, specialties: list) -> list:
+    matched    = []
+    spec_count = {}
+    for d in doctors:
+        doc_spec = d.get("specialization", "")
+        if doc_spec in specialties:
+            count = spec_count.get(doc_spec, 0)
+            if count < 2:
+                matched.append(d)
+                spec_count[doc_spec] = count + 1
+    if not matched:
+        return [d for d in doctors if d.get("availabilityStatus", True)][:6]
+    return matched
+
+
 def format_doctors_context(doctors: list) -> str:
     if not doctors:
-        return "No doctors currently listed in the system."
+        return "No relevant doctors currently available."
     lines = []
     for d in doctors:
         name       = d.get("name", "Unknown Doctor")
@@ -129,11 +387,7 @@ def format_doctors_context(doctors: list) -> str:
     return "\n".join(lines)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# IMPROVEMENT 1: Urgency Triage
-# Classifies every message into Low / Medium / High / Emergency
-# This shows the committee the AI is making clinical decisions, not just chatting
-# ─────────────────────────────────────────────────────────────────────────────
+# ── Urgency Triage ────────────────────────────────────────────────────────────
 EMERGENCY_KEYWORDS = [
     "can't breathe", "cannot breathe", "chest pain", "heart attack",
     "stroke", "unconscious", "not breathing", "severe bleeding",
@@ -153,23 +407,18 @@ def classify_urgency(text: str) -> str:
     for kw in HIGH_KEYWORDS:
         if kw in text_lower:
             return "HIGH"
-    pain_words = ["pain", "درد", "severe", "شدید", "acute"]
-    if any(w in text_lower for w in pain_words):
+    if any(w in text_lower for w in ["pain", "درد", "severe", "شدید", "acute"]):
         return "MEDIUM"
     return "LOW"
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# IMPROVEMENT 2: Conversation History
-# Each request now accepts a chat_history array so the AI remembers context
-# across the full session — not just the last message
-# ─────────────────────────────────────────────────────────────────────────────
+# ── Core AI Logic ─────────────────────────────────────────────────────────────
 def process_ai_logic(
     user_text: str,
     user_profile: dict,
     doctors: list,
     language: str = "en-US",
-    chat_history: list = [],   # ← NEW: list of {role, content} dicts
+    chat_history: list = [],
 ) -> dict:
 
     if not groq_client:
@@ -193,6 +442,16 @@ def process_ai_logic(
         def line(label, value):
             return f"- {label}: {value}" if value else None
 
+        # BMI calculation
+        bmi_line = None
+        if weight and height:
+            try:
+                bmi = float(weight) / ((float(height) / 100) ** 2)
+                bmi_cat = ("Underweight" if bmi < 18.5 else "Normal" if bmi < 25 else "Overweight" if bmi < 30 else "Obese")
+                bmi_line = f"- BMI: {bmi:.1f} ({bmi_cat})"
+            except:
+                pass
+
         context_lines = list(filter(None, [
             line("Name", name),
             line("Age", f"{age} years old" if age else None),
@@ -201,6 +460,7 @@ def process_ai_logic(
             line("Date of Birth", dob),
             line("Weight", f"{weight} kg" if weight else None),
             line("Height", f"{height} cm" if height else None),
+            bmi_line,
             line("Medical History / Conditions", conditions),
             line("Known Allergies", allergies),
             line("Emergency Contact", emergency),
@@ -210,96 +470,78 @@ def process_ai_logic(
         ]))
 
         context_str = "\n".join(context_lines) if context_lines else "No health profile available."
-        doctors_str = format_doctors_context(doctors)
-        is_urdu     = "ur" in language.lower()
 
-        # Classify urgency BEFORE building the prompt
+        # KEY FIX: filter doctors by symptom-matched specialties
+        relevant_specialties = get_relevant_specialties(user_text)
+        relevant_doctors     = filter_doctors_by_specialty(doctors, relevant_specialties)
+        doctors_str          = format_doctors_context(relevant_doctors)
+        doctor_id_map        = {str(d.get("id", "")): d for d in relevant_doctors if d.get("id")}
+
+        print(f"Matched specialties: {relevant_specialties} -> {len(relevant_doctors)} relevant doctors")
+
+        is_urdu = "ur" in language.lower()
         urgency = classify_urgency(user_text)
 
-        # Build urgency-specific instruction
         if urgency == "EMERGENCY":
             urgency_instruction = (
-                "⚠️ EMERGENCY DETECTED: The patient's message contains emergency symptoms. "
-                "START your response with '🚨 EMERGENCY:' and immediately tell them to call 1122 (Rescue Pakistan) or go to the nearest ER. "
-                "Then briefly explain what to do while waiting for help. "
-                "Do NOT give home remedies for emergency situations."
+                "EMERGENCY DETECTED: START your response with '🚨 EMERGENCY:' and immediately "
+                "tell them to call 1122 (Rescue Pakistan) or go to the nearest ER. "
+                "Do NOT give home remedies."
             )
         elif urgency == "HIGH":
-            urgency_instruction = (
-                "HIGH URGENCY: The patient has serious symptoms. "
-                "Recommend they see a doctor TODAY or visit an urgent care clinic. "
-                "Suggest the most relevant available doctor from the list."
-            )
+            urgency_instruction = "HIGH URGENCY: Recommend they see a doctor TODAY. Suggest the most relevant available doctor."
         elif urgency == "MEDIUM":
-            urgency_instruction = (
-                "MEDIUM URGENCY: Suggest the most relevant doctor from the list "
-                "and recommend booking within 1-2 days."
-            )
+            urgency_instruction = "MEDIUM URGENCY: Suggest the most relevant doctor and recommend booking within 1-2 days."
         else:
-            urgency_instruction = (
-                "LOW URGENCY: Provide helpful advice. Suggest a doctor if relevant."
-            )
+            urgency_instruction = "LOW URGENCY: Provide helpful advice. Suggest a doctor if relevant."
 
         if is_urdu:
             lang_instruction = (
-                "CRITICAL LANGUAGE RULE: You MUST respond ENTIRELY in Urdu script (اردو). "
-                "Do NOT use English in your response at all. "
-                "Your entire response including doctor suggestions must be in Urdu script."
+                "CRITICAL: You MUST respond ENTIRELY in Urdu script (اردو). "
+                "Do NOT use English at all."
             )
             lang_reminder = "یاد رہے: پوری بات اردو میں لکھیں۔"
         else:
             lang_instruction = "Respond in clear, simple English. Avoid complex medical jargon."
             lang_reminder    = "Respond in simple English."
 
-        doctor_id_map = {str(d.get("id", "")): d for d in doctors if d.get("id")}
-
         system_prompt = f"""You are Sehat AI, an intelligent, empathetic medical health assistant for Pakistani users.
-You have FULL ACCESS to this patient's health profile and the real doctors available in the Sehat AI system.
 
 {lang_instruction}
 
 PATIENT PROFILE:
 {context_str}
 
-AVAILABLE DOCTORS IN SEHAT AI:
+DOCTORS RELEVANT TO THIS PATIENT'S SYMPTOMS (suggest ONLY from this list):
 {doctors_str}
 
-URGENCY ASSESSMENT FOR THIS MESSAGE: {urgency}
+URGENCY: {urgency}
 {urgency_instruction}
 
-YOUR RULES:
-1. PERSONALIZE every response — reference the patient's name, conditions, medications when relevant.
-2. If they mention a symptom related to their known conditions, explicitly connect the dots.
-3. If they are on medications, consider drug interactions or side effects.
-4. DOCTOR SUGGESTIONS: When symptoms or conditions warrant a specialist:
-   - Recommend the most relevant doctor(s) BY NAME and SPECIALTY from the list above
-   - End your response with EXACTLY this format:
-     SUGGEST_DOCTORS:[comma-separated IDs, e.g. 3,7]
-   - Only suggest Available doctors
-   - If no relevant doctor is available, omit the SUGGEST_DOCTORS line
-5. Include URGENCY_LEVEL:[LOW|MEDIUM|HIGH|EMERGENCY] at the very end of your response.
-6. Give 1-2 clear practical steps the patient can take right now.
+RULES:
+1. Personalize every response — use the patient's name, reference their conditions and medications.
+2. If BMI is in the profile, reference it when clinically relevant.
+3. Connect symptoms to known medical history when applicable.
+4. DOCTOR SUGGESTIONS: Recommend the most relevant doctor(s) BY NAME from the list above.
+   End your response with EXACTLY: SUGGEST_DOCTORS:[comma-separated IDs]
+   Only suggest Available doctors. Omit this line if none are relevant.
+5. Include URGENCY_LEVEL:[LOW|MEDIUM|HIGH|EMERGENCY] at the very end.
+6. Give 1-2 practical steps the patient can take right now.
 7. Be concise — 3-5 sentences. More for emergencies.
-8. DO NOT make up medications or give definitive diagnoses.
-9. DO NOT start with "I".
-10. If unsure, say so explicitly and recommend in-person consultation.
+8. NEVER make up medications or give definitive diagnoses.
+9. Do NOT start with "I".
+10. If unsure, say so and recommend in-person consultation.
 11. {lang_reminder}"""
 
-        # ── Build messages array with conversation history ────────────────────
-        # This is the key change — the AI now sees the full conversation
         messages_to_send = [{"role": "system", "content": system_prompt}]
-
-        # Add previous turns (limit to last 10 to stay within token budget)
         for turn in chat_history[-10:]:
             role    = turn.get("role", "user")
             content = turn.get("content", "")
             if role in ("user", "assistant") and content:
                 messages_to_send.append({"role": role, "content": content})
-
-        # Add current message
         messages_to_send.append({"role": "user", "content": user_text})
 
-        print(f"Processing: '{user_text[:60]}' | lang={language} | urgency={urgency} | history={len(chat_history)} turns | {len(doctors)} doctors")
+        print(f"Processing: '{user_text[:60]}' | lang={language} | urgency={urgency} | history={len(chat_history)} | doctors={len(relevant_doctors)}")
 
         response = groq_client.chat.completions.create(
             model=GROQ_MODEL,
@@ -308,25 +550,20 @@ YOUR RULES:
             temperature=0.65,
         )
 
-        raw_text = response.choices[0].message.content.strip()
-
+        raw_text          = response.choices[0].message.content.strip()
         suggested_doctors = []
         clean_text        = raw_text
-        detected_urgency  = urgency  # fallback to our classification
+        detected_urgency  = urgency
 
-        # Extract SUGGEST_DOCTORS
         if "SUGGEST_DOCTORS:" in raw_text:
             parts      = raw_text.split("SUGGEST_DOCTORS:")
             clean_text = parts[0].strip()
             id_str     = parts[1].strip().split("\n")[0].strip()
-            # Also strip URGENCY_LEVEL if it got mixed in
-            id_str = id_str.split("URGENCY_LEVEL:")[0].strip()
-            suggested_ids = [sid.strip() for sid in id_str.split(",") if sid.strip()]
-            for sid in suggested_ids:
+            id_str     = id_str.split("URGENCY_LEVEL:")[0].strip()
+            for sid in [s.strip() for s in id_str.split(",") if s.strip()]:
                 if sid in doctor_id_map:
                     suggested_doctors.append(doctor_id_map[sid])
 
-        # Extract URGENCY_LEVEL from AI response
         if "URGENCY_LEVEL:" in clean_text:
             parts            = clean_text.split("URGENCY_LEVEL:")
             clean_text       = parts[0].strip()
@@ -354,14 +591,13 @@ YOUR RULES:
         return {"text": fallback, "suggested_doctors": [], "urgency": "LOW"}
 
 
-# ── Voice Chat Endpoint ────────────────────────────────────────────────────────
+# ── Voice Chat ─────────────────────────────────────────────────────────────────
 @app.route("/voice-chat", methods=["POST"])
 def voice_chat():
     cleanup_old_temp_files()
     try:
         if not FFMPEG_OK:
             return jsonify({"error": "FFmpeg is not installed. Please set FFMPEG_BIN_PATH in .env."}), 500
-
         if "audio" not in request.files:
             return jsonify({"error": "No audio file provided"}), 400
 
@@ -369,14 +605,12 @@ def voice_chat():
         language        = request.form.get("language", "en-US")
         profile_str     = request.form.get("userProfile", "{}")
         doctors_str_raw = request.form.get("doctors", "[]")
-        history_str     = request.form.get("chatHistory", "[]")  # ← NEW
+        history_str     = request.form.get("chatHistory", "[]")
 
         try: user_profile = json.loads(profile_str)
         except: user_profile = {}
-
         try: doctors = json.loads(doctors_str_raw)
         except: doctors = []
-
         try: chat_history = json.loads(history_str)
         except: chat_history = []
 
@@ -403,9 +637,8 @@ def voice_chat():
 
         if user_text == "...":
             result = {
-                "text": "آپ کی آواز سنائی نہیں دی۔ ذرا اونچا بول کر دوبارہ کوشش کریں۔" if "ur" in language.lower() else "I didn't catch that. Could you please speak again a little louder?",
-                "suggested_doctors": [],
-                "urgency": "LOW",
+                "text": "آپ کی آواز سنائی نہیں دی۔ ذرا اونچا بول کر دوبارہ کوشش کریں۔" if "ur" in language.lower() else "I didn't catch that. Could you speak a little louder?",
+                "suggested_doctors": [], "urgency": "LOW",
             }
         else:
             result = process_ai_logic(user_text, user_profile, doctors, language, chat_history)
@@ -422,12 +655,9 @@ def voice_chat():
             except: pass
 
         return jsonify({
-            "success":           True,
-            "user_text":         user_text,
-            "ai_text":           ai_response,
-            "suggested_doctors": result["suggested_doctors"],
-            "urgency":           result["urgency"],
-            "audio_url":         f"http://{get_local_ip()}:5001/get-audio/{uid}_response.mp3"
+            "success": True, "user_text": user_text, "ai_text": ai_response,
+            "suggested_doctors": result["suggested_doctors"], "urgency": result["urgency"],
+            "audio_url": f"http://{get_local_ip()}:5001/get-audio/{uid}_response.mp3"
         })
 
     except Exception as e:
@@ -435,7 +665,7 @@ def voice_chat():
         return jsonify({"error": str(e)}), 500
 
 
-# ── Text Chat Endpoint ─────────────────────────────────────────────────────────
+# ── Text Chat ──────────────────────────────────────────────────────────────────
 @app.route("/text-chat", methods=["POST"])
 def text_chat():
     cleanup_old_temp_files()
@@ -445,7 +675,7 @@ def text_chat():
         language     = data.get("language", "en-US")
         user_profile = data.get("userProfile", {})
         doctors      = data.get("doctors", [])
-        chat_history = data.get("chatHistory", [])   # ← NEW
+        chat_history = data.get("chatHistory", [])
 
         if not user_text:
             return jsonify({"error": "No text provided"}), 400
@@ -454,11 +684,9 @@ def text_chat():
         result = process_ai_logic(user_text, user_profile, doctors, language, chat_history)
 
         return jsonify({
-            "success":           True,
-            "user_text":         user_text,
-            "ai_text":           result["text"],
-            "suggested_doctors": result["suggested_doctors"],
-            "urgency":           result["urgency"],
+            "success": True, "user_text": user_text,
+            "ai_text": result["text"], "suggested_doctors": result["suggested_doctors"],
+            "urgency": result["urgency"],
         })
 
     except Exception as e:
@@ -466,7 +694,7 @@ def text_chat():
         return jsonify({"error": str(e)}), 500
 
 
-# ── Feedback Endpoint ──────────────────────────────────────────────────────────
+# ── Feedback ───────────────────────────────────────────────────────────────────
 @app.route("/feedback", methods=["POST"])
 def save_feedback():
     try:
@@ -515,33 +743,23 @@ def get_audio(filename):
     return send_file(path, mimetype="audio/mpeg")
 
 
-
-
 @app.route("/health", methods=["GET"])
 def health():
-
-    temp_files = len(glob.glob("temp/*"))
-
-
-
+    temp_files     = len(glob.glob("temp/*"))
     feedback_count = 0
     if os.path.exists(FEEDBACK_LOG_FILE):
         with open(FEEDBACK_LOG_FILE, "r") as f:
             feedback_count = sum(1 for _ in f)
-
-            
     return jsonify({
-        "status":          "OK",
-        "service":         "Sehat AI Python Service",
-        "ai_engine":       f"Groq ({GROQ_MODEL}) — Llama 3.3 70B",
-        "groq":            "configured" if groq_client else "MISSING API KEY",
-        "ffmpeg":          "found" if FFMPEG_OK else "NOT FOUND",
-        "temp_files":      temp_files,
-        "feedback_logged": feedback_count,
+        "status": "OK", "service": "Sehat AI Python Service",
+        "ai_engine": f"Groq ({GROQ_MODEL}) — Llama 3.3 70B",
+        "groq": "configured" if groq_client else "MISSING API KEY",
+        "ffmpeg": "found" if FFMPEG_OK else "NOT FOUND",
+        "temp_files": temp_files, "feedback_logged": feedback_count,
         "features": [
-            "voice-chat", "text-chat", "doctor-suggestions",
+            "voice-chat", "text-chat", "symptom-based-doctor-filtering",
             "personalized-responses", "bilingual-urdu-english",
-            "urgency-triage", "conversation-history",
+            "urgency-triage", "conversation-history", "bmi-awareness",
             "feedback-collection", "auto-temp-cleanup",
         ],
     })
@@ -550,7 +768,7 @@ def health():
 if __name__ == "__main__":
     print(f"\nSehat AI Service starting on port 5001")
     print(f"AI Engine: Groq — Llama 3.3 70B")
-    print(f"Features: Doctor suggestions, Urgency triage, Conversation history, Bilingual")
+    print(f"Features: Symptom-based doctor filtering, Urgency triage, Conversation history, BMI, Bilingual")
     print(f"Local IP: {get_local_ip()}")
     print(f"Health check: http://localhost:5001/health\n")
     app.run(port=5001, host="0.0.0.0", debug=True)
