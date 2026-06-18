@@ -8,15 +8,18 @@ const Doctor = sequelize.define('Doctor', {
     primaryKey: true,
     autoIncrement: true
   },
-  // Link to the User table (Foreign Key)
   userId: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    unique: true // One user = One doctor profile
+    unique: true 
   },
   specialization: {
     type: DataTypes.STRING,
-    allowNull: false // e.g., "Cardiologist"
+    allowNull: false
+  },
+  licenseNumber: {
+    type: DataTypes.STRING,
+    allowNull: true // True so that existing rows don't crash
   },
   experienceYears: {
     type: DataTypes.INTEGER,
@@ -29,7 +32,37 @@ const Doctor = sequelize.define('Doctor', {
   isVerified: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
+  },
+  verificationStatus: {
+    type: DataTypes.ENUM('pending', 'verified', 'rejected'),
+    defaultValue: 'pending' 
+  },
+
+  bio: {
+    type: DataTypes.TEXT, // Longer text for "About Doctor"
+    allowNull: true
+  },
+  qualifications: {
+    type: DataTypes.TEXT("long"), // Stores JSON array of qualifications
+    allowNull: true
+  },
+  availabilityStatus: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true // To toggle "Online/Offline" manually
   }
 });
+
+// 2. Define Associations (Crucial for "include: [...]" queries)
+// We assign this to a helper method so we can call it in models/index.js
+Doctor.associate = (models) => {
+  // Link to User (to get Name, Profile Pic)
+  Doctor.belongsTo(models.User, { as: 'user', foreignKey: 'userId' });
+  
+  // Link to Appointments (To check booked slots)
+  Doctor.hasMany(models.Appointment, { as: 'appointments', foreignKey: 'doctorId' });
+  
+  // Link to Availability (To check working hours)
+  Doctor.hasMany(models.Availability, { as: 'schedules', foreignKey: 'doctorId' });
+};
 
 module.exports = Doctor;

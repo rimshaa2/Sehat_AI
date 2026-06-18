@@ -1,8 +1,7 @@
 const { DataTypes } = require("sequelize");
 const { sequelize } = require("../config/database");
-const User = require("./User");
 
-// Reference: SDS Table 12 - Appointment Table Dictionary [cite: 1075]
+// Reference: SDS Table 12 - Appointment Table Dictionary
 const Appointment = sequelize.define(
   "Appointment",
   {
@@ -27,6 +26,41 @@ const Appointment = sequelize.define(
       type: DataTypes.ENUM("pending", "completed", "failed", "refunded"),
       defaultValue: "pending",
     },
+    paymentMethod: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: "cash",
+    },
+    receiptImage: {
+      type: DataTypes.TEXT("long"),
+      allowNull: true,
+    },
+    // ── NEW: tracks admin review of the uploaded payment screenshot ──────────
+    // pending_review  → receipt uploaded, waiting for admin
+    // approved        → admin confirmed the payment
+    // rejected        → admin rejected (patient needs to re-upload)
+    // not_required    → cash payment, no screenshot needed
+    paymentReviewStatus: {
+      type: DataTypes.ENUM(
+        "not_required",
+        "pending_review",
+        "approved",
+        "rejected"
+      ),
+      defaultValue: "not_required",
+    },
+    // Optional note admin can leave when rejecting a receipt
+    paymentReviewNote: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    // ── NEW: deadline until which a patient can cancel (set at booking time) ─
+    // Patients can cancel up to CANCELLATION_HOURS_BEFORE_APPOINTMENT hours
+    // before the appointment start time (default: 2 hours).
+    cancellationDeadline: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
     amount: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
@@ -36,24 +70,37 @@ const Appointment = sequelize.define(
       allowNull: true,
     },
     meetingLink: {
-      type: DataTypes.STRING, // For telemedicine links [cite: 905]
+      type: DataTypes.STRING,
       allowNull: true,
+    },
+    patientId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    doctorId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
     },
   },
   {
     indexes: [
       {
-        unique: true, // <--- This forces the database to reject duplicates
+        unique: true,
         fields: ["doctorId", "appointmentDate", "timeSlot"],
       },
     ],
   }
 );
 
-// Relationships
-// User.hasMany(Appointment, { foreignKey: 'patientId', as: 'patientAppointments' });
-// User.hasMany(Appointment, { foreignKey: 'doctorId', as: 'doctorAppointments' });
-// Appointment.belongsTo(User, { as: 'patient', foreignKey: 'patientId' });
-// Appointment.belongsTo(User, { as: 'doctor', foreignKey: 'doctorId' });
+Appointment.associate = (models) => {
+  Appointment.belongsTo(models.User, {
+    as: "patient",
+    foreignKey: "patientId",
+  });
+  Appointment.belongsTo(models.Doctor, {
+    as: "doctor",
+    foreignKey: "doctorId",
+  });
+};
 
 module.exports = Appointment;

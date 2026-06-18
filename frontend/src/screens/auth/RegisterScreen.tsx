@@ -9,28 +9,45 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  StyleSheet,
+  Linking,
 } from "react-native";
 import auth from "@react-native-firebase/auth";
 import styles from "./styles/RegisterScreenStyles";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { AuthStackParamList } from "../../navigation/types";
-import firestore from "@react-native-firebase/firestore";
 import { Keyboard } from "react-native";
-import { serverTimestamp } from "@react-native-firebase/firestore";
 
-// Simple regex for email validation
+// 🔴 REMOVED: Firestore imports
+// 🟢 ADDED: Sync User API
+import { syncUser } from "../../services/api";
+
 const isValidEmail = (email: string) => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 };
 
+const getPasswordStrength = (value: string) => {
+  if (!value) return { label: "Too weak", score: 0, color: "#D1D5DB" };
+
+  let score = 0;
+  if (value.length >= 8) score += 1;
+  if (/[A-Z]/.test(value)) score += 1;
+  if (/[a-z]/.test(value)) score += 1;
+  if (/\d/.test(value)) score += 1;
+  if (/[^A-Za-z0-9]/.test(value)) score += 1;
+
+  if (score <= 2) return { label: "Weak", score, color: "#EF4444" };
+  if (score <= 4) return { label: "Medium", score, color: "#F59E0B" };
+  return { label: "Strong", score, color: "#10B981" };
+};
+
 type Props = NativeStackScreenProps<AuthStackParamList, "Register">;
+
 const RegisterScreen: React.FC<Props> = ({ navigation }) => {
-  // Form State
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [acceptedPolicies, setAcceptedPolicies] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -39,11 +56,35 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
     email: "",
     password: "",
     confirmPassword: "",
+    policies: "",
   });
+
+  const TERMS_URL = "https://sehat.ai/terms";
+  const PRIVACY_URL = "https://sehat.ai/privacy";
+  const passwordStrength = getPasswordStrength(password);
+
+  const openPolicyLink = async (url: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (!supported) {
+        Alert.alert("Link unavailable", "Could not open this policy link.");
+        return;
+      }
+      await Linking.openURL(url);
+    } catch (error) {
+      Alert.alert("Link unavailable", "Could not open this policy link.");
+    }
+  };
 
   const validateForm = () => {
     let valid = true;
-    let newErrors = { name: "", email: "", password: "", confirmPassword: "" };
+    let newErrors = {
+      name: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      policies: "",
+    };
 
     if (name.trim().length < 2) {
       newErrors.name = "Full Name is required";
@@ -64,6 +105,10 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
       newErrors.confirmPassword = "Passwords do not match";
       valid = false;
     }
+    if (!acceptedPolicies) {
+      newErrors.policies = "You must accept Terms and Privacy Policy";
+      valid = false;
+    }
 
     setErrors(newErrors);
     return valid;
@@ -76,7 +121,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
     setIsLoading(true);
 
     try {
-      // 2. Create Authentication User
+      // 1. Create Authentication User in Firebase
       const userCredential = await auth().createUserWithEmailAndPassword(
         email.trim(),
         password
@@ -84,33 +129,38 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
 
       const user = userCredential.user;
 
-      // 3. Save extra data to Firestore
-      // We use .set() to create a document with the specific User ID (uid)
-      await firestore().collection("users").doc(user.uid).set({
-        fullName: name,
-        email: email.trim(),
-        createdAt: serverTimestamp(), // Consistent server time
-        role: "user", 
-        profileImage: null,
-      });
+      // 2. Update Auth Profile IMMEDIATELY
+      // We do this before syncing so the token contains the correct name
+      await user.updateProfile({ displayName: name });
 
-      // 4. Update Auth Profile 
-     await auth().currentUser?.updateProfile({ displayName: name });
+      // 3. Get Fresh Token (Force Refresh)
+      // Passing 'true' forces a refresh, ensuring the new displayName is inside the token
+      const idToken = await user.getIdToken(true);
 
+      // 4. Sync to MySQL Backend
+      console.log("Syncing new user to MySQL...");
+      await syncUser(idToken);
+      console.log("✅ User created in MySQL");
 
       Alert.alert("Success", "Account created successfully!");
 
       // Navigate to Home/App
       navigation.navigate("Home");
+
     } catch (error: any) {
+      console.error("Registration Error:", error);
+      
       let errorMessage = "Something went wrong";
       if (error.code === "auth/email-already-in-use") {
         errorMessage = "That email address is already in use!";
       } else if (error.code === "auth/weak-password") {
         errorMessage = "Password is too weak!";
+      } else if (error.message && error.message.includes("Network Error")) {
+        errorMessage = "Account created, but could not connect to server. Please check internet.";
       } else {
         errorMessage = error.message;
       }
+      
       Alert.alert("Registration Failed", errorMessage);
     } finally {
       setIsLoading(false);
@@ -203,6 +253,38 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
           {errors.password ? (
             <Text style={styles.errorText}>{errors.password}</Text>
           ) : null}
+          <View style={{ marginTop: 8 }}>
+            <View
+              style={{
+                width: "100%",
+                height: 6,
+                borderRadius: 4,
+                backgroundColor: "#E5E7EB",
+                overflow: "hidden",
+              }}
+            >
+              <View
+                style={[
+                  {
+                    height: "100%",
+                    borderRadius: 4,
+                    width: `${Math.max(20, (passwordStrength.score / 5) * 100)}%`,
+                    backgroundColor: passwordStrength.color,
+                  },
+                ]}
+              />
+            </View>
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "600",
+                marginTop: 6,
+                color: passwordStrength.color,
+              }}
+            >
+              Strength: {passwordStrength.label}
+            </Text>
+          </View>
         </View>
 
         <View style={styles.inputGroup}>
@@ -223,6 +305,47 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
           </View>
           {errors.confirmPassword ? (
             <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+          ) : null}
+        </View>
+
+        <View style={styles.policyContainer}>
+          <TouchableOpacity
+            style={styles.checkboxRow}
+            onPress={() => {
+              setAcceptedPolicies((prev) => !prev);
+              if (errors.policies) {
+                setErrors((prev) => ({ ...prev, policies: "" }));
+              }
+            }}
+            activeOpacity={0.8}
+          >
+            <View
+              style={[
+                styles.checkbox,
+                acceptedPolicies ? styles.checkboxChecked : null,
+              ]}
+            >
+              {acceptedPolicies ? <Text style={styles.checkboxTick}>✓</Text> : null}
+            </View>
+            <Text style={styles.policyText}>
+              I agree to the{" "}
+              <Text
+                style={styles.policyLink}
+                onPress={() => openPolicyLink(TERMS_URL)}
+              >
+                Terms of Service
+              </Text>{" "}
+              and{" "}
+              <Text
+                style={styles.policyLink}
+                onPress={() => openPolicyLink(PRIVACY_URL)}
+              >
+                Privacy Policy
+              </Text>
+            </Text>
+          </TouchableOpacity>
+          {errors.policies ? (
+            <Text style={styles.errorText}>{errors.policies}</Text>
           ) : null}
         </View>
 

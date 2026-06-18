@@ -1,0 +1,10 @@
+/* ./src/index.css or similar */
+@import "tailwindcss";
+
+@theme{
+  /* Define your custom colors here */
+  --color-sehat-teal: #48D1CC;
+  --color-sehat-darkTeal: #20B2AA;
+  --color-sehat-purple: #483D8B;
+  --color-sehat-bg: #E0F7FA;
+}

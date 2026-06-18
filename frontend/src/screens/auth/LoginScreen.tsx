@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   SafeAreaView,
   View,
@@ -10,22 +10,60 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   getAuth,
   signInWithEmailAndPassword,
 } from "@react-native-firebase/auth";
 import styles from "./styles/LoginScreenStyles";
-import { syncUser } from "../../services/api";
+import { syncUser, recordLoginAttempt } from "../../services/api";
 
 export default ({ navigation }: any) => {
+  const MAX_FAILED_ATTEMPTS = 5;
+  const LOCKOUT_MINUTES = 10;
+  const LOCKOUT_KEY = "auth_lockout_until";
+  const FAILED_ATTEMPTS_KEY = "auth_failed_attempts";
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [remainingLockoutSeconds, setRemainingLockoutSeconds] = useState(0);
 
   const auth = getAuth();
 
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    const hydrateLockout = async () => {
+      const lockoutUntil = await AsyncStorage.getItem(LOCKOUT_KEY);
+      if (!lockoutUntil) return;
+      const remaining = Math.max(
+        0,
+        Math.floor((Number(lockoutUntil) - Date.now()) / 1000),
+      );
+      setRemainingLockoutSeconds(remaining);
+    };
+
+    hydrateLockout();
+    interval = setInterval(() => {
+      setRemainingLockoutSeconds((prev) => Math.max(0, prev - 1));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const handleLogin = async () => {
+    const lockoutUntil = await AsyncStorage.getItem(LOCKOUT_KEY);
+    if (lockoutUntil && Number(lockoutUntil) > Date.now()) {
+      const remaining = Math.ceil((Number(lockoutUntil) - Date.now()) / 1000);
+      setRemainingLockoutSeconds(remaining);
+      Alert.alert(
+        "Account temporarily locked",
+        `Too many failed attempts. Try again in ${Math.ceil(remaining / 60)} minute(s).`,
+      );
+      return;
+    }
+
     if (!email || !password) {
       Alert.alert("Error", "Please enter both email and password.");
       return;
@@ -52,8 +90,11 @@ export default ({ navigation }: any) => {
       // B. Send token to your Node.js backend
       // This ensures the user exists in your 'Users' table in MySQL
       const dbResponse = await syncUser(idToken);
+      await recordLoginAttempt(email.trim(), true);
 
       console.log("✅ MySQL Sync Success:", dbResponse);
+      await AsyncStorage.multiRemove([FAILED_ATTEMPTS_KEY, LOCKOUT_KEY]);
+      setRemainingLockoutSeconds(0);
       // ---------------------------------------------------------
 
       // 2. Navigate to Home on success
@@ -79,6 +120,28 @@ export default ({ navigation }: any) => {
       if (error.message && error.message.includes("Network Error")) {
         msg =
           "Cannot connect to Sehat AI Server. Please check your internet or try again later.";
+      }
+
+      try {
+        await recordLoginAttempt(email.trim(), false);
+      } catch (attemptError: any) {
+        if (attemptError?.response?.status === 423) {
+          msg = "Too many failed attempts. Account is locked for 10 minutes.";
+        }
+      }
+
+      const nextFailedAttempts =
+        Number(await AsyncStorage.getItem(FAILED_ATTEMPTS_KEY) || 0) + 1;
+      await AsyncStorage.setItem(
+        FAILED_ATTEMPTS_KEY,
+        String(nextFailedAttempts),
+      );
+      if (nextFailedAttempts >= MAX_FAILED_ATTEMPTS) {
+        const lockoutUntilTs = Date.now() + LOCKOUT_MINUTES * 60 * 1000;
+        await AsyncStorage.setItem(LOCKOUT_KEY, String(lockoutUntilTs));
+        await AsyncStorage.setItem(FAILED_ATTEMPTS_KEY, "0");
+        setRemainingLockoutSeconds(LOCKOUT_MINUTES * 60);
+        msg = `Too many failed attempts. Account is locked for ${LOCKOUT_MINUTES} minutes.`;
       }
 
       Alert.alert("Login Failed", msg);
@@ -156,11 +219,7 @@ export default ({ navigation }: any) => {
 
         {/* Forgot Password */}
         <View style={styles.forgotPasswordContainer}>
-          <TouchableOpacity
-            onPress={() =>
-              Alert.alert("Reset Password", "This feature is coming soon!")
-            }
-          >
+          <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}>
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
         </View>
@@ -170,7 +229,7 @@ export default ({ navigation }: any) => {
           <TouchableOpacity
             style={styles.button}
             onPress={handleLogin}
-            disabled={isLoading}
+            disabled={isLoading || remainingLockoutSeconds > 0}
           >
             {isLoading ? (
               <ActivityIndicator color="#FFF" />
@@ -178,6 +237,11 @@ export default ({ navigation }: any) => {
               <Text style={styles.buttonText}>Log In</Text>
             )}
           </TouchableOpacity>
+          {remainingLockoutSeconds > 0 ? (
+            <Text style={styles.lockoutText}>
+              Login locked for {Math.ceil(remainingLockoutSeconds / 60)} minute(s).
+            </Text>
+          ) : null}
         </View>
 
         {/* Register Link */}

@@ -1,60 +1,117 @@
 require('dotenv').config();
 const { Sequelize } = require('sequelize');
 const { createClient } = require('redis');
-const admin = require('firebase-admin');
+const admin = require('./firebase');
 
-// 1. MySQL Connection (Structured Data)
-const sequelize = new Sequelize(process.env.DB_NAME, process.env.DB_USER, process.env.DB_PASS, {
-  host: process.env.DB_HOST,
-  port: 3308,
-  dialect: 'mysql',
-  logging: false,
-});
+// 1. MySQL Connection - Support both Railway and Local
+let sequelize;
 
-// 2. Redis Connection (Caching)
-const redisClient = createClient({ url: process.env.REDIS_URL });
-redisClient.on('error', (err) => console.log('Redis Client Error', err));
-
-// 3. Firestore (deferred)
-let _firestore = null;
-const getFirestore = () => {
-  if (_firestore) return _firestore;
-  if (!admin.apps || admin.apps.length === 0) {
-    if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-      try {
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
-        admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-      } catch (err) {
-        throw new Error('Invalid FIREBASE_SERVICE_ACCOUNT_JSON: ' + err.message);
+if (process.env.DATABASE_URL) {
+  // Railway provides DATABASE_URL for MySQL
+  sequelize = new Sequelize(process.env.DATABASE_URL, {
+    dialect: 'mysql',
+    logging: false,
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false
       }
-    } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-      try {
-        admin.initializeApp();
-      } catch (err) {
-        // continue to error below if still not initialized
-      }
-    } else {
-      throw new Error('Firebase admin not initialized. Set FIREBASE_SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS.');
     }
-  }
-  _firestore = admin.firestore();
-  return _firestore;
+  });
+} else {
+  // Local development
+  sequelize = new Sequelize(
+    process.env.DB_NAME || 'sehat_ai',
+    process.env.DB_USER || 'root',
+    process.env.DB_PASS || '',
+    {
+      host: process.env.DB_HOST || 'localhost',
+      port: process.env.DB_PORT || 3308,
+      dialect: 'mysql',
+      logging: false,
+    }
+  );
+}
+
+// 2. Redis Connection - FIXED VERSION
+// let redisClient;
+
+// if (process.env.REDIS_URL) {
+//   // Railway Redis uses rediss:// (with SSL)
+//   const redisUrl = process.env.REDIS_URL;
+  
+//   redisClient = createClient({ 
+//     url: redisUrl,
+//     socket: {
+//       // Only enable TLS if using rediss:// protocol
+//       tls: redisUrl.startsWith('rediss://'),
+//       rejectUnauthorized: false,
+//       connectTimeout: 10000,
+//       keepAlive: 5000
+//     }
+//   });
+// } else {
+//   // Local Redis without TLS
+//   redisClient = createClient({
+//     url: 'redis://localhost:6379',
+//     socket: {
+//       tls: false
+//     }
+//   });
+// }
+
+// redisClient.on('error', (err) => console.log('Redis Client Error:', err.message));
+
+// 3. Firestore - Make optional
+const getFirestore = () => {
+  if (!admin) return null;
+  return admin.firestore();
 };
 
 const connectDB = async () => {
+  const errors = [];
+  
   try {
-    await sequelize.authenticate();
-    console.log('✅ MySQL Connected (Structured Backbone)');
+    // MySQL Connection
+    try {
+      await sequelize.authenticate();
+      console.log('✅ MySQL Connected');
+      
+      // Sync is handled centrally in server startup to avoid duplicate ALTER runs.
+    } catch (mysqlError) {
+      errors.push(`MySQL: ${mysqlError.message}`);
+      console.warn('⚠️ MySQL connection failed:', mysqlError.message);
+    }
 
-    await redisClient.connect();
-    console.log('✅ Redis Connected (Caching Layer)');
+    // Redis Connection
+    // try {
+    //   if (!redisClient.isOpen) {
+    //     await redisClient.connect();
+    //     console.log('✅ Redis Connected');
+    //   }
+    // } catch (redisError) {
+    //   errors.push(`Redis: ${redisError.message}`);
+    //   console.warn('⚠️ Redis connection failed:', redisError.message);
+    // }
 
-    await sequelize.sync({ alter: true });
-    console.log('✅ SQL Models Synced');
+    // Firestore Connection (optional)
+    try {
+      const firestore = getFirestore();
+      if (firestore) {
+        console.log('✅ Firestore available');
+      }
+    } catch (firestoreError) {
+      console.warn('⚠️ Firestore not available:', firestoreError.message);
+    }
+
+    if (errors.length > 0) {
+      console.warn(`⚠️ Some connections failed, but server will start. Errors: ${errors.join(', ')}`);
+    }
+
   } catch (error) {
-    console.error('❌ Database Connection Failed:', error);
-    process.exit(1);
+    console.error('❌ Unexpected error in connectDB:', error.message);
+    // Don't exit - let server start anyway
   }
 };
 
-module.exports = { sequelize, redisClient,getFirestore, connectDB };
+module.exports = { sequelize, getFirestore, connectDB };

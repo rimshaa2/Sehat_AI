@@ -8,8 +8,9 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import { ChevronLeft } from "lucide-react";
-import { getFirestore, doc, updateDoc, serverTimestamp } from "@react-native-firebase/firestore";
+import { ChevronLeft } from "lucide-react-native";
+import { rescheduleAppointment } from "../../services/api";
+import api from "../../services/api";
 import styles from "./styles/RescheduleAppointmentStyles";
 
 // Generate next 7 days logic
@@ -30,12 +31,6 @@ const generateDates = () => {
   return dates;
 };
 
-const TIME_SLOTS = [
-  "09:00 AM", "10:00 AM", "11:00 AM",
-  "01:00 PM", "02:00 PM", "03:00 PM",
-  "04:00 PM", "07:00 PM", "08:00 PM",
-];
-
 export default ({ navigation, route }: any) => {
   const { appointment } = route.params || {};
   
@@ -45,6 +40,34 @@ export default ({ navigation, route }: any) => {
   const [selectedDate, setSelectedDate] = useState(appointment?.date || dates[0].fullDate);
   const [selectedTime, setSelectedTime] = useState(appointment?.time || null);
   const [isLoading, setIsLoading] = useState(false);
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(true);
+
+  // Fetch Slots dynamically from the backend for the selected doctor
+  React.useEffect(() => {
+    const fetchSlots = async () => {
+      setLoadingSlots(true);
+      setAvailableSlots([]);
+      setSelectedTime(null);
+      try {
+        const docId = appointment?.doctorId || appointment?.doctor?.id;
+        if (!docId) return;
+        
+        const response = await api.get(`/api/appointments/doctors/${docId}/slots`, {
+          params: { date: selectedDate }
+        });
+        if (response.data && response.data.availableSlots) {
+          setAvailableSlots(response.data.availableSlots);
+        }
+      } catch (error) {
+        console.error("Failed to fetch slots for reschedule:", error);
+      } finally {
+        setLoadingSlots(false);
+      }
+    };
+    fetchSlots();
+  }, [selectedDate, appointment]);
+
 
   const handleUpdate = async () => {
     if (!selectedTime) {
@@ -61,16 +84,12 @@ export default ({ navigation, route }: any) => {
     setIsLoading(true);
 
     try {
-      const db = getFirestore();
-      const appointmentRef = doc(db, "appointments", appointment.id);
-
-      // Update the document
-      await updateDoc(appointmentRef, {
-        date: selectedDate,
-        time: selectedTime,
-        status: "rescheduled",
-        updatedAt: serverTimestamp(),
-      });
+      // Update via MySQL backend
+      await rescheduleAppointment(
+        appointment.id,
+        selectedDate,
+        selectedTime
+      );
 
       Alert.alert(
         "Success", 
@@ -141,22 +160,33 @@ export default ({ navigation, route }: any) => {
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>Select New Time</Text>
         </View>
-        <View style={styles.timeGrid}>
-          {TIME_SLOTS.map((time, index) => (
-            <TouchableOpacity 
-              key={index}
-              style={[
-                styles.timeSlot, 
-                selectedTime === time && styles.timeSlotActive
-              ]}
-              onPress={() => setSelectedTime(time)}
-            >
-              <Text style={[styles.timeText, selectedTime === time && styles.textActive]}>
-                {time}
+        
+        {loadingSlots ? (
+          <ActivityIndicator size="small" color="#199A8E" style={{ marginTop: 20 }} />
+        ) : (
+          <View style={styles.timeGrid}>
+            {availableSlots.length > 0 ? (
+              availableSlots.map((time, index) => (
+                <TouchableOpacity 
+                  key={index}
+                  style={[
+                    styles.timeSlot, 
+                    selectedTime === time && styles.timeSlotActive
+                  ]}
+                  onPress={() => setSelectedTime(time)}
+                >
+                  <Text style={[styles.timeText, selectedTime === time && styles.textActive]}>
+                    {time}
+                  </Text>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <Text style={{ color: '#EF4444', fontStyle: 'italic', marginTop: 10, marginLeft: 24 }}>
+                Doctor is not available on this date.
               </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+            )}
+          </View>
+        )}
 
       </ScrollView>
 

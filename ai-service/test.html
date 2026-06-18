@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <h2>Sehat AI Voice Test</h2>
+
+  <input type="file" id="audio" accept="audio/*"><br><br>
+  <button onclick="send()">Send</button>
+
+  <pre id="output"></pre>
+
+<script>
+function send() {
+  const file = document.getElementById("audio").files[0];
+  const fd = new FormData();
+  fd.append("audio", file);
+  fd.append("language", "en-US");
+
+  fetch("http:///127.0.0.1:5001/voice-chat", {
+    method: "POST",
+    body: fd
+  })
+  .then(res => res.json())
+  .then(data => document.getElementById("output").innerText =
+    JSON.stringify(data, null, 2));
+}
+</script>
+</body>
+</html>

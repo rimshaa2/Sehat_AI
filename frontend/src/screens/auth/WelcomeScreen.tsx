@@ -12,10 +12,11 @@ import {
 } from "react-native";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import auth from "@react-native-firebase/auth";
-import firestore from "@react-native-firebase/firestore";
+
 
 import styles from "./styles/WelcomeScreenStyle";
 import { IMAGES } from "../../constants/Images";
+import { syncUser } from "../../services/api"; // 🟢 ADDED: API Service
 
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../../navigation/types";
@@ -25,7 +26,15 @@ type Props = NativeStackScreenProps<AuthStackParamList, "Welcome">;
 const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
 
-  // 1. Configure Google Sign-In (Run once on mount)
+  const withTimeout = async <T,>(promise: Promise<T>, ms = 20000): Promise<T> => {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) =>
+        setTimeout(() => reject(new Error("Request timed out. Please try again.")), ms),
+      ),
+    ]);
+  };
+
   useEffect(() => {
     GoogleSignin.configure({
       webClientId: "839845740526-efh4bq1oaunaboe80q6mk01av3oq5rs2.apps.googleusercontent.com", 
@@ -35,43 +44,29 @@ const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
   const onGoogleButtonPress = async () => {
     setLoading(true);
     try {
-      // 1. Check if device supports Google Play
+      // 1. Google Sign-In (Get Google Token)
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      
-      // 2. Get the user's ID token
       const signInResult = await GoogleSignin.signIn();
+      const googleIdToken = signInResult.data?.idToken;
+
+      if (!googleIdToken) throw new Error('No ID token found');
+
+      // 2. Firebase Sign-In (Exchange Google Token for Firebase User)
+      const googleCredential = auth.GoogleAuthProvider.credential(googleIdToken);
+      const userCredential = await withTimeout(
+        auth().signInWithCredential(googleCredential),
+      );
       
-      // FIX: Access token directly from 'data' property
-      // The library guarantees 'data' exists on success in v13+
-      const idToken = signInResult.data?.idToken;
+      // 3. 🟢 SYNC WITH MYSQL BACKEND
+      console.log("✅ Google Auth Success. Syncing with MySQL...");
+      
+      // We need the FIREBASE token (not the Google one) to send to your backend
+      const firebaseToken = await withTimeout(userCredential.user.getIdToken());
+      
+      const dbResponse = await withTimeout(syncUser(firebaseToken));
+      console.log("✅ Backend Sync Complete:", dbResponse);
 
-      if (!idToken) {
-        throw new Error('No ID token found');
-      }
-
-      // 3. Create a Google credential with the token
-      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-
-      // 4. Sign-in the user with the credential
-      const userCredential = await auth().signInWithCredential(googleCredential);
-      const user = userCredential.user;
-
-      // 5. SAVE TO FIRESTORE
-      const userDocRef = firestore().collection("users").doc(user.uid);
-      const userDoc = await userDocRef.get();
-
-      if (!userDoc.exists) {
-        await userDocRef.set({
-          fullName: user.displayName || "Google User",
-          email: user.email,
-          profileImage: user.photoURL,
-          createdAt: firestore.FieldValue.serverTimestamp(),
-          role: "user",
-          phone: user.phoneNumber || "",
-        });
-      }
-
-      // 6. Navigate to Home
+      // 4. Navigate to Home
       navigation.reset({
         index: 0,
         routes: [{ name: "Home" }],
@@ -81,8 +76,21 @@ const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
       if (error.code === 'SIGN_IN_CANCELLED') {
         console.log("User cancelled login");
       } else {
-        console.error(error);
-        Alert.alert("Google Sign-In Error", error.message);
+        console.error("Google Sign In Error:", error);
+        
+        // Handle Network Errors gracefully
+        if (error.message && error.message.includes("Network Error")) {
+           Alert.alert("Connection Failed", "Could not reach the server. Please check your internet.");
+        } else if (error.message && error.message.includes("timed out")) {
+           Alert.alert("Login Timeout", "Google login took too long. Please retry.");
+        } else if (
+          error.message &&
+          error.message.includes("EXPO_PUBLIC_API_URL")
+        ) {
+          Alert.alert("Backend URL Missing", error.message);
+        } else {
+           Alert.alert("Error", error.message);
+        }
       }
     } finally {
       setLoading(false);
@@ -92,19 +100,15 @@ const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scroll}>
-        {/* Background Header */}
         <ImageBackground
           source={IMAGES.WELCOME_BG}
           resizeMode="stretch"
           imageStyle={styles.headerImage}
           style={styles.headerWrapper}
         >
-          <View style={styles.statusBarRow}>
-            {/* You can remove this row if using SafeAreaView correctly on styles */}
-          </View>
+          <View style={styles.statusBarRow} />
         </ImageBackground>
 
-        {/* Title */}
         <View style={styles.titleWrapper}>
           <Text style={styles.appTitle}>Sehat AI</Text>
           <Text style={styles.subtitle}>
@@ -112,7 +116,6 @@ const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
           </Text>
         </View>
 
-        {/* Buttons */}
         <View style={styles.buttonWrapper}>
           <TouchableOpacity
             style={styles.primaryButton}
@@ -151,7 +154,6 @@ const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
           </Text>
         </View>
 
-        {/* Terms */}
         <View style={styles.termsWrapper}>
           <Text style={styles.termsText}>
             By signing up or logging in, I accept the app’s {"\n"}Terms of
@@ -159,7 +161,6 @@ const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
           </Text>
         </View>
 
-        {/* Bottom bar */}
         <View style={styles.bottomBarWrapper}>
           <View style={styles.bottomBar} />
         </View>
